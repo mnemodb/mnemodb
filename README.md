@@ -20,4 +20,4 @@ Every MnemoDB file is valid Markdown; every existing Markdown memory file
 
 Status: spec v0.1 (draft, post-Phase-0), implementation v0.1 in progress.
 
-See [CHANGELOG.md](CHANGELOG.md) for release history.
+**[How to use it →](docs/USAGE.md)** · See [CHANGELOG.md](CHANGELOG.md) for release history.
