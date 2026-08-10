@@ -7,8 +7,27 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist", "README.md"],
-  "repository": { "type": "git", "url": "https://github.com/mnemodb/mnemodb" },
-  "keywords": ["ai", "agent", "memory", "llm", "markdown", "mnemodb", "mem.md"],
-  "engines": { "node": ">=18" }
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mnemodb/mnemodb"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "memory",
+    "llm",
+    "markdown",
+    "mnemodb",
+    "mem.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

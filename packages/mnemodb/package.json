@@ -1,0 +1,15 @@
+{
+  "name": "mnemodb",
+  "version": "0.1.0",
+  "description": "MnemoDB — the agent memory format. A database whose files you can read: human-readable .mem.md memory for AI agents. Umbrella package re-exporting @mnemodb/core.",
+  "license": "Apache-2.0",
+  "author": "Ziv (zivuch)",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": ["index.js", "index.d.ts", "README.md", "SPEC.md"],
+  "dependencies": { "@mnemodb/core": "0.1.0" },
+  "keywords": ["ai", "agent", "memory", "llm", "markdown", "mcp", "claude", "agent-memory", "memory-format"],
+  "repository": { "type": "git", "url": "https://github.com/mnemodb/mnemodb" },
+  "engines": { "node": ">=18" }
+}
