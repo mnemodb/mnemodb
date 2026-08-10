@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   parse, serialize, mergeDocs, loadStore, deriveIndex, doctor,
   liveEntries, alwaysTier, isExpired, ttlDays, appendEntry, generateId,
 } from '../dist/index.js';
 
-const FIXTURES = new URL('../../../fixtures', import.meta.url).pathname;
+const FIXTURES = fileURLToPath(new URL('../../../fixtures', import.meta.url));
 const DOGFOOD = join(FIXTURES, 'dogfood');
 
 function dogfoodFiles() {
