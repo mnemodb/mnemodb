@@ -1,0 +1,13 @@
+{
+  "name": "@mnemodb/cli",
+  "version": "0.1.0",
+  "description": "mnemo — CLI for MnemoDB agent memory stores: init, list, show, doctor.",
+  "license": "Apache-2.0",
+  "author": "Ziv (zivuch)",
+  "type": "module",
+  "bin": { "mnemo": "dist/main.js" },
+  "files": ["dist", "README.md"],
+  "dependencies": { "@mnemodb/core": "0.1.0" },
+  "repository": { "type": "git", "url": "https://github.com/mnemodb/mnemodb" },
+  "engines": { "node": ">=18" }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@mnemodb/core",
+  "version": "0.1.0",
+  "description": "MnemoDB core: parse, serialize, index, resolve, merge, and validate .mem.md agent memory stores. Zero runtime dependencies.",
+  "license": "Apache-2.0",
+  "author": "Ziv (zivuch)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "README.md"],
+  "repository": { "type": "git", "url": "https://github.com/mnemodb/mnemodb" },
+  "keywords": ["ai", "agent", "memory", "llm", "markdown", "mnemodb", "mem.md"],
+  "engines": { "node": ">=18" }
+}

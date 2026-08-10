@@ -1,0 +1,10 @@
+{
+  "name": "mnemodb-monorepo",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "tsc -b packages/core packages/cli",
+    "test": "npm run build && node --test packages/core/test/"
+  },
+  "devDependencies": { "typescript": "^5.5.0", "@types/node": "^20.0.0" }
+}
