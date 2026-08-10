@@ -45,10 +45,21 @@ export function parse(source: string, path?: string): MemDoc {
   }
 
   // --- Split into preamble + entry blocks on '## ' headings at line start.
+  // Lines inside fenced code blocks (``` / ~~~) are NOT headings — bodies
+  // routinely contain code samples that themselves contain '## ' lines.
   const lines = rest.split('\n');
   const headingLines: number[] = [];
+  const FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
+  let fenceChar: string | null = null;
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith('## ')) headingLines.push(i);
+    const line = lines[i].endsWith('\r') ? lines[i].slice(0, -1) : lines[i];
+    const fence = FENCE_RE.exec(line);
+    if (fence) {
+      if (fenceChar === null) fenceChar = fence[1][0];
+      else if (fence[1][0] === fenceChar) fenceChar = null;
+      continue;
+    }
+    if (fenceChar === null && line.startsWith('## ')) headingLines.push(i);
   }
 
   const preamble = headingLines.length === 0

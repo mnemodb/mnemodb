@@ -36,7 +36,7 @@ test('dogfood store parses fully with no error diagnostics', () => {
   const allDiags = store.docs.flatMap((d) => d.diagnostics);
   assert.deepEqual(allDiags.filter((d) => d.level === 'error'), []);
   const entries = store.docs.reduce((n, d) => n + d.entries.length, 0);
-  assert.equal(entries, 21);
+  assert.equal(entries, 25);
 });
 
 test('index derivation excludes cold tier by default', () => {
@@ -234,4 +234,32 @@ test('CRLF documents (Windows checkouts) parse with correct types and stay byte-
   assert.equal(doc.entries[0].meta.id, 'crlf01');
   assert.equal(doc.entries[0].meta.conf, 'high');
   assert.equal(serialize(doc), src, 'CRLF bytes preserved exactly on round-trip');
+});
+
+test('fenced code blocks containing ## lines are not split into entries', () => {
+  const src = '## fact: build script structure\n`mnemo cb01 | src: agent`\n\n' +
+    'The script:\n\n```markdown\n## fact: EXAMPLE inside a fence\n`mnemo fake1`\n```\n\nEnd.\n' +
+    '## fact: real second entry\n`mnemo cb02`\n\n~~~\n## also fenced with tildes\n~~~\n';
+  const doc = parse(src);
+  assert.equal(doc.entries.length, 2, 'fence content must not create entries');
+  assert.equal(doc.entries[0].meta.id, 'cb01');
+  assert.equal(doc.entries[1].meta.id, 'cb02');
+  assert.match(doc.entries[0].body, /EXAMPLE inside a fence/, 'fence stays in body');
+  assert.equal(serialize(doc), src, 'byte-stable with fences');
+});
+
+test('store lock: held lock blocks, stale lock is broken', async () => {
+  const { mkdtempSync, mkdirSync: mkd, utimesSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { withStoreLock } = await import('../dist/index.js');
+  const root = mkdtempSync(join(tmpdir(), 'lock-'));
+  // basic acquire/release
+  assert.equal(withStoreLock(root, () => 42), 42);
+  // held fresh lock → timeout error
+  mkd(join(root, '.mnemo-lock'));
+  assert.throws(() => withStoreLock(root, () => 0, { timeoutMs: 200 }), /Timed out/);
+  // stale lock (mtime 60s ago) → broken and acquired
+  const old = new Date(Date.now() - 60_000);
+  utimesSync(join(root, '.mnemo-lock'), old, old);
+  assert.equal(withStoreLock(root, () => 'stolen', { timeoutMs: 2000 }), 'stolen');
 });

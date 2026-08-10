@@ -43,9 +43,12 @@ function parseFile(path: string, root: string): MemDoc {
 function walk(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
-    if (name.startsWith('.git') || name === 'node_modules') continue;
+    // Skip dot-entries (.git, .mnemo-lock, .DS_Store, editor temp dirs).
+    if (name.startsWith('.') || name === 'node_modules') continue;
     const p = join(dir, name);
-    if (statSync(p).isDirectory()) out.push(...walk(p));
+    let st;
+    try { st = statSync(p); } catch { continue; } // vanished between readdir and stat
+    if (st.isDirectory()) out.push(...walk(p));
     else out.push(p);
   }
   return out.sort();

@@ -12,3 +12,4 @@ export { planCompaction, applyCompaction, writeFileAtomic } from './compact.js';
 export type { CompactPlan, CompactMove } from './compact.js';
 export { migrateProseFile, importNumberedDir } from './migrate.js';
 export type { ImportedEntry } from './migrate.js';
+export { withStoreLock } from './lock.js';

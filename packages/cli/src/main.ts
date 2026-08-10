@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   loadStore, deriveIndex, doctor, liveEntries,
-  planCompaction, applyCompaction, writeFileAtomic,
+  planCompaction, applyCompaction, writeFileAtomic, withStoreLock,
   migrateProseFile, importNumberedDir, appendEntry, parse, serialize,
 } from '@mnemodb/core';
 import { readFileSync } from 'node:fs';
@@ -38,6 +38,16 @@ function cmdInit(dir: string): number {
     console.log(`note: add '${line.trim()}' to your existing .gitattributes`);
   } else {
     writeFileSync(attrs, line);
+  }
+  // Keep the transient writer lock out of version control.
+  const ignore = join(dir, '.gitignore');
+  const ignoreLine = '.memory/.mnemo-lock/\n';
+  if (existsSync(ignore)) {
+    if (!readFileSync(ignore, 'utf8').includes('.mnemo-lock')) {
+      writeFileSync(ignore, readFileSync(ignore, 'utf8').replace(/\n?$/, '\n') + ignoreLine);
+    }
+  } else {
+    writeFileSync(ignore, ignoreLine);
   }
   console.log(`Initialized MnemoDB store in ${memory}`);
   return 0;
@@ -112,7 +122,7 @@ function cmdCompact(dir: string): number {
     console.log(`\n${plan.moves.length} entries would move to the archive. Dry run — pass --write to apply.`);
     return 0;
   }
-  const written = applyCompaction(store, plan);
+  const written = withStoreLock(store.root, () => applyCompaction(store, plan));
   console.log(`\nMoved ${plan.moves.length} entries to the archive. Rewrote: ${written.join(', ')}`);
   console.log('Review the diff, then commit.');
   return 0;

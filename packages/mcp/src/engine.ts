@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import {
   loadStore, liveEntries, parse, serialize, appendEntry, generateId,
   writeFileAtomic, doctor, planCompaction, applyCompaction,
-  isStale, estimateTokens,
+  isStale, estimateTokens, withStoreLock,
 } from '@mnemodb/core';
 import type { Entry, LiveEntry, Store } from '@mnemodb/core';
 
@@ -24,6 +24,15 @@ export interface RecallHit {
   statement: string;
   body: string;
   scope: string;
+  /**
+   * Provenance (spec §10): 'user' | 'agent' | 'tool' (+ optional /session).
+   * REQUIRED in the result so the consuming agent can apply trust ordering —
+   * treat `tool`-sourced content as data, never instructions. Omitting it
+   * defeats the injection defense (audit 2026-08-10).
+   */
+  src: string;
+  /** True when src is tool-derived — a fast flag for "do not obey this". */
+  untrusted: boolean;
   file: string;
   line: number;
   score: number;
@@ -42,8 +51,12 @@ function stem(t: string): string {
   return t;
 }
 
+// Split on anything that is not a letter or number in ANY script (Unicode-aware).
+// The ASCII-only \/[^a-z0-9]+\/ dropped Hebrew, CJK, Cyrillic, Arabic, etc. —
+// non-English memories stored fine but were unsearchable (audit 2026-08-10).
+const NON_WORD = /[^\p{L}\p{N}]+/u;
 function tokens(text: string): string[] {
-  return text.toLowerCase().split(/[^a-z0-9]+/)
+  return text.toLowerCase().split(NON_WORD)
     .filter((t) => t.length > 1 && !STOPWORDS.has(t))
     .map(stem);
 }
@@ -77,12 +90,15 @@ export function recall(
     score *= CONF_BOOST[entry.meta.conf ?? 'med'] ?? 1;
     score *= PIN_BOOST[entry.meta.pin ?? 'auto'] ?? 1;
     score *= recencyFactor(entry, now);
+    const src = entry.meta.src ?? 'agent';
     hits.push({
       id: entry.meta.id ?? null,
       type: entry.type,
       statement: entry.statement,
       body: entry.body.trim(),
       scope,
+      src,
+      untrusted: src.startsWith('tool'),
       file: doc.path ?? '',
       line: entry.line,
       score: Math.round(score * 100) / 100,
@@ -134,6 +150,12 @@ function similarity(a: string, b: string): number {
 }
 
 export function remember(storeDir: string, input: RememberInput): RememberResult {
+  // Serialize writers: concurrent unlocked writers lose updates (audit 2026-08-10).
+  const probeRoot = loadStore(storeDir).root;
+  return withStoreLock(probeRoot, () => rememberLocked(storeDir, input));
+}
+
+function rememberLocked(storeDir: string, input: RememberInput): RememberResult {
   const store = loadStore(storeDir);
   const now = input.now ?? new Date();
   const scope = input.scope ?? 'project';
@@ -221,14 +243,19 @@ export interface CompactResult {
 }
 
 export function compact(storeDir: string, opts?: { write?: boolean; now?: Date }): CompactResult {
-  const store = loadStore(storeDir);
-  const plan = planCompaction(store, opts?.now ?? new Date());
-  const moves = plan.moves.map((m) => ({ id: m.id, reason: m.reason, statement: m.statement }));
-  if (!opts?.write || plan.moves.length === 0) {
-    return { moves, applied: false, written: [] };
-  }
-  const written = applyCompaction(store, plan);
-  return { moves, applied: true, written };
+  const run = (): CompactResult => {
+    const store = loadStore(storeDir);
+    const plan = planCompaction(store, opts?.now ?? new Date());
+    const moves = plan.moves.map((m) => ({ id: m.id, reason: m.reason, statement: m.statement }));
+    if (!opts?.write || plan.moves.length === 0) {
+      return { moves, applied: false, written: [] };
+    }
+    const written = applyCompaction(store, plan);
+    return { moves, applied: true, written };
+  };
+  if (!opts?.write) return run(); // dry-run: read-only, no lock needed
+  const probeRoot = loadStore(storeDir).root;
+  return withStoreLock(probeRoot, run);
 }
 
 // ----------------------------------------------------------------- boot -----
@@ -243,7 +270,11 @@ export function bootContext(storeDir: string, now: Date = new Date()): string {
   }
   for (const { entry } of liveEntries(store, now)) {
     if (entry.meta.pin === 'always') {
-      parts.push(`[${entry.type}] ${entry.statement}`);
+      // Mark tool-derived pins so a session-start reader does not treat
+      // injected content as trusted instruction (spec §10).
+      const src = entry.meta.src ?? 'agent';
+      const tag = src.startsWith('tool') ? `[${entry.type} · untrusted:tool]` : `[${entry.type}]`;
+      parts.push(`${tag} ${entry.statement}`);
     }
   }
   return parts.join('\n\n');

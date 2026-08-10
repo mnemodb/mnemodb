@@ -1,6 +1,6 @@
 {
   "name": "@mnemodb/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "mnemo \u2014 CLI for MnemoDB agent memory stores: init, list, show, doctor.",
   "license": "Apache-2.0",
   "author": "Ziv (zivuch)",
@@ -13,11 +13,11 @@
     "README.md"
   ],
   "dependencies": {
-    "@mnemodb/core": "0.1.0"
+    "@mnemodb/core": "0.1.1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mnemodb/mnemodb"
+    "url": "git+https://github.com/mnemodb/mnemodb.git"
   },
   "engines": {
     "node": ">=18"

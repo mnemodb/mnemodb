@@ -94,3 +94,15 @@ Reversible: split later is easy, merge later is painful.
 
 ## insight: Windows checkouts use CRLF: parsers must strip trailing CR before regex anchors, and tests must use fileURLToPath, never URL.pathname
 `mnemo 4jhtijfm | src: agent | updated: 2026-08-10 | tags: portability, parser`
+
+## fact: Full end-to-end audit of 0.1.0 found two HIGH bugs: fence-blind entry splitting and concurrent-writer lost updates — both fixed in 0.1.1
+`mnemo vwpfpsx0 | src: agent | updated: 2026-08-10 | tags: audit, milestone`
+
+## insight: Writers must be serialized: atomic rename alone cannot protect read-modify-write; the store lock (mkdir-based) is mandatory for every write path
+`mnemo gddmi088 | src: agent | updated: 2026-08-10 | tags: concurrency`
+
+## fact: Security+i18n review found two more HIGH bugs: non-ASCII unsearchable, and recall stripped provenance (defeating the injection defense) — both fixed in 0.1.1
+`mnemo t8b76827 | src: agent | updated: 2026-08-10 | tags: audit, security`
+
+## insight: recall MUST expose src and an untrusted flag; the injection defense is only real if provenance reaches the consuming agent
+`mnemo l66g9ts5 | src: agent | updated: 2026-08-10 | tags: security`
