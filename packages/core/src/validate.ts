@@ -5,7 +5,7 @@
  */
 import { REGISTERED_TYPES } from './types.js';
 import { ttlDays, isExpired, isStale } from './lifecycle.js';
-import { alwaysTier, supersededIds } from './store.js';
+import { alwaysTier, supersededIds, forgedSupersedes } from './store.js';
 import type { Store } from './store.js';
 import type { Diagnostic } from './types.js';
 
@@ -103,6 +103,14 @@ export function doctor(store: Store, now: Date = new Date()): DoctorReport {
         message: `entries [${ids.join(', ')}] both supersede '${target}' — resolve by superseding one of them`,
       });
     }
+  }
+
+  // Forged supersedes: a lower-trust entry tried to hide a higher-trust one.
+  for (const { by, target } of forgedSupersedes(store)) {
+    diagnostics.push({
+      level: 'error', line: 0, rule: 'forged-supersede',
+      message: `entry ${by} tried to supersede higher-trust entry '${target}' — refused; target stays live`,
+    });
   }
 
   // Budget check: always-tier tokens + preambles vs front-matter budget.

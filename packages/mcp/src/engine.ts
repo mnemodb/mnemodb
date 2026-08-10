@@ -13,6 +13,7 @@ import {
   loadStore, liveEntries, parse, serialize, appendEntry, generateId,
   writeFileAtomic, doctor, planCompaction, applyCompaction,
   isStale, estimateTokens, withStoreLock,
+  sanitizeStatement, trustRank, MAX_BODY,
 } from '@mnemodb/core';
 import type { Entry, LiveEntry, Store } from '@mnemodb/core';
 
@@ -158,16 +159,29 @@ export function remember(storeDir: string, input: RememberInput): RememberResult
 function rememberLocked(storeDir: string, input: RememberInput): RememberResult {
   const store = loadStore(storeDir);
   const now = input.now ?? new Date();
-  const scope = input.scope ?? 'project';
+  const scope: 'project' | 'user' = input.scope === 'user' ? 'user' : 'project';
+
+  // Size caps (audit 2026-08-10): reject before doing any work.
+  const statement = sanitizeStatement(input.statement ?? '');
+  if (!statement) throw new Error('memory_remember: statement is empty after sanitization');
+  if ((input.body ?? '').length > MAX_BODY) throw new Error(`memory_remember: body exceeds ${MAX_BODY} chars`);
+  // `src` is fixed to 'agent' at the MCP boundary; programmatic callers may pass
+  // a value but it is cleaned and can never be a raw 'user' spoof via injection.
+  const src = (input.src ?? 'agent');
+  // Only same-or-higher-trust writers may supersede (mirrors §10; a tool/agent
+  // caller cannot erase a user entry — enforced again at resolution).
+  const supersedes = (input.supersedes ?? []).filter((tid) => {
+    const target = store.docs.flatMap((d) => d.entries).find((e) => e.meta.id === tid);
+    if (!target) return true;
+    // Only bar the tool→(user/agent) escalation; agent/user may revise freely.
+    return !(trustRank(src) === 1 && trustRank(target.meta.src) > 1);
+  });
 
   // Dedup: near-identical live statement → return existing, write nothing.
-  if (!input.supersedes?.length) {
+  if (!supersedes.length) {
     for (const { entry } of liveEntries(store, now)) {
-      if (entry.meta.id && similarity(entry.statement, input.statement) >= 0.8) {
-        return {
-          status: 'duplicate', id: entry.meta.id, duplicateOf: entry.meta.id,
-          file: '',
-        };
+      if (entry.meta.id && similarity(entry.statement, statement) >= 0.8) {
+        return { status: 'duplicate', id: entry.meta.id, duplicateOf: entry.meta.id, file: '' };
       }
     }
   }
@@ -182,24 +196,36 @@ function rememberLocked(storeDir: string, input: RememberInput): RememberResult 
   const used = new Set<string>();
   for (const d of store.docs) for (const e of d.entries) if (e.meta.id) used.add(e.meta.id);
   const id = generateId(used);
+  const entriesBefore = doc.entries.length;
 
   appendEntry(doc, {
     type: input.type ?? 'note',
-    statement: input.statement,
+    statement,
     meta: {
       id,
       scope: doc.frontMatter?.scope === scope ? undefined : scope,
-      src: input.src ?? 'agent',
+      src,
       updated: now.toISOString().slice(0, 10),
       ...(input.tags?.length ? { tags: input.tags } : {}),
-      ...(input.supersedes?.length ? { supersedes: input.supersedes } : {}),
+      ...(supersedes.length ? { supersedes } : {}),
     },
-    body: input.body ? (input.body.endsWith('\n') ? input.body : input.body + '\n') : '',
+    body: input.body ?? '',
     raw: '', line: 0,
   });
-  writeFileAtomic(path, serialize(doc));
+  const output = serialize(doc);
+
+  // Fail-closed integrity backstop: the write must add EXACTLY one entry with
+  // our id. If sanitization ever misses a vector, refuse rather than persist an
+  // injected store (audit 2026-08-10).
+  const reparsed = parse(output);
+  const mine = reparsed.entries.filter((e) => e.meta.id === id);
+  if (reparsed.entries.length !== entriesBefore + 1 || mine.length !== 1) {
+    throw new Error('memory_remember: refused — content would alter store structure');
+  }
+
+  writeFileAtomic(path, output);
   return {
-    status: input.supersedes?.length ? 'superseded-and-created' : 'created',
+    status: supersedes.length ? 'superseded-and-created' : 'created',
     id, file: fileName,
   };
 }

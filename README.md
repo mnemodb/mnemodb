@@ -19,3 +19,5 @@ Every MnemoDB file is valid Markdown; every existing Markdown memory file
 (CLAUDE.md, AGENTS.md) is already a valid untyped MnemoDB file.
 
 Status: spec v0.1 (draft, post-Phase-0), implementation v0.1 in progress.
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.

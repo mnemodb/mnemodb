@@ -18,3 +18,5 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: node --test packages/core/test/*.test.js packages/mcp/test/*.test.js
+      - name: Security gate (adversarial suite must pass)
+        run: node --test packages/mcp/test/security.test.js

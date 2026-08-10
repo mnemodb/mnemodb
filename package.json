@@ -6,7 +6,8 @@
   ],
   "scripts": {
     "build": "tsc -b packages/core packages/cli packages/mcp",
-    "test": "npm run build && node --test \"packages/core/test/*.test.js\" \"packages/mcp/test/*.test.js\""
+    "test": "npm run build && node --test \"packages/core/test/*.test.js\" \"packages/mcp/test/*.test.js\"",
+    "test:security": "npm run build && node --test \"packages/mcp/test/security.test.js\""
   },
   "devDependencies": {
     "typescript": "^5.5.0",

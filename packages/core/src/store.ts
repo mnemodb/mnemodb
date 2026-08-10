@@ -7,6 +7,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { parse } from './parse.js';
 import { isExpired } from './lifecycle.js';
+import { trustRank } from './sanitize.js';
 import type { Conf, Entry, IndexEntry, MemDoc, Pin } from './types.js';
 
 export interface Store {
@@ -80,15 +81,57 @@ export function deriveIndex(store: Store, opts?: { includeCold?: boolean }): Ind
   return index;
 }
 
-/** All ids superseded by any entry in the store. */
+/**
+ * All ids superseded by any entry — but ONLY where the superseding entry's
+ * trust rank is >= the target's (spec §10; audit 2026-08-10). A lower-trust
+ * entry (e.g. tool-sourced) cannot hide or erase a higher-trust one (e.g. a
+ * user preference); such an edge is ignored so the target stays live, and
+ * `doctor` reports it as a `forged-supersede`.
+ */
 export function supersededIds(store: Store): Set<string> {
+  const srcById = new Map<string, string | undefined>();
+  for (const doc of store.docs) {
+    for (const e of doc.entries) if (e.meta.id) srcById.set(e.meta.id, e.meta.src);
+  }
   const ids = new Set<string>();
   for (const doc of store.docs) {
     for (const e of doc.entries) {
-      for (const id of e.meta.supersedes ?? []) ids.add(id);
+      for (const id of e.meta.supersedes ?? []) {
+        if (supersedeAllowed(e.meta.src, srcById.get(id))) ids.add(id);
+      }
     }
   }
   return ids;
+}
+
+/**
+ * Trust rule for supersession (spec §10; audit 2026-08-10): the only barred
+ * case is a `tool`-sourced entry hiding a NON-tool (user/agent) entry — the
+ * prompt-injection escalation path. Agent and user are mutually trusted (the
+ * agent acts for the user), so everyday revisions are unaffected.
+ */
+function supersedeAllowed(superSrc: string | undefined, targetSrc: string | undefined): boolean {
+  if (targetSrc === undefined) return true; // superseding an unknown/foreign id
+  return !(trustRank(superSrc) === 1 && trustRank(targetSrc) > 1);
+}
+
+/** Supersede edges refused because a tool-sourced entry targeted a trusted one. */
+export function forgedSupersedes(store: Store): { by: string; target: string }[] {
+  const srcById = new Map<string, string | undefined>();
+  for (const doc of store.docs) {
+    for (const e of doc.entries) if (e.meta.id) srcById.set(e.meta.id, e.meta.src);
+  }
+  const out: { by: string; target: string }[] = [];
+  for (const doc of store.docs) {
+    for (const e of doc.entries) {
+      for (const id of e.meta.supersedes ?? []) {
+        if (srcById.has(id) && !supersedeAllowed(e.meta.src, srcById.get(id))) {
+          out.push({ by: e.meta.id ?? '?', target: id });
+        }
+      }
+    }
+  }
+  return out;
 }
 
 export interface LiveEntry { entry: Entry; doc: MemDoc; scope: string }

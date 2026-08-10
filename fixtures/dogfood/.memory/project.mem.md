@@ -106,3 +106,9 @@ Reversible: split later is easy, merge later is painful.
 
 ## insight: recall MUST expose src and an untrusted flag; the injection defense is only real if provenance reaches the consuming agent
 `mnemo l66g9ts5 | src: agent | updated: 2026-08-10 | tags: security`
+
+## fact: Adversarial day-one audit found two CRITICAL bugs: structural injection (forged trusted entries) and supersede forgery — fixed in 0.1.2 with a permanent security ship gate
+`mnemo yb0wkgfv | src: agent | updated: 2026-08-10 | tags: audit, security, milestone`
+
+## insight: All writes must sanitize untrusted text at the core serialize layer AND re-parse output to fail closed; a memory engine writes attacker-influenced content by definition
+`mnemo 88rjf8go | src: agent | updated: 2026-08-10 | tags: security`
