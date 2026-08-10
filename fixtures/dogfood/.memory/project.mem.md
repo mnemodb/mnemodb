@@ -79,3 +79,12 @@ adopters; CC BY keeps attribution on the spec. MIT considered, minor loss.
 
 Single issue tracker; spec+code change in one PR while the format moves.
 Reversible: split later is easy, merge later is painful.
+
+## fact: Phase 1 shipped: repo live at github.com/mnemodb/mnemodb with CI green on first run
+`mnemo taodjk3r | src: agent | updated: 2026-08-10 | tags: milestone`
+
+## fact: Phase 2 engine built: @mnemodb/mcp exposes recall/remember/review/compact/boot over stdio MCP
+`mnemo qnitz2t9 | src: agent | updated: 2026-08-10 | tags: milestone`
+
+## insight: Recall uses light stemming; the es-suffix rule broke license/licenses matching and was removed
+`mnemo tybs1yev | src: agent | updated: 2026-08-10 | tags: retrieval`

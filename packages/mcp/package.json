@@ -1,0 +1,19 @@
+{
+  "name": "@mnemodb/mcp",
+  "version": "0.1.0",
+  "description": "MnemoDB memory engine as an MCP server: memory_recall, memory_remember, memory_review, memory_compact over human-readable .mem.md stores.",
+  "license": "Apache-2.0",
+  "author": "Ziv (zivuch)",
+  "type": "module",
+  "main": "dist/engine.js",
+  "types": "dist/engine.d.ts",
+  "bin": { "mnemo-mcp": "dist/server.js" },
+  "files": ["dist", "README.md"],
+  "dependencies": {
+    "@mnemodb/core": "0.1.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  },
+  "repository": { "type": "git", "url": "https://github.com/mnemodb/mnemodb" },
+  "engines": { "node": ">=18" }
+}

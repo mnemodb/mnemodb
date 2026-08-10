@@ -35,7 +35,7 @@ test('dogfood store parses fully with no error diagnostics', () => {
   const allDiags = store.docs.flatMap((d) => d.diagnostics);
   assert.deepEqual(allDiags.filter((d) => d.level === 'error'), []);
   const entries = store.docs.reduce((n, d) => n + d.entries.length, 0);
-  assert.equal(entries, 16);
+  assert.equal(entries, 19);
 });
 
 test('index derivation excludes cold tier by default', () => {

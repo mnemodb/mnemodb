@@ -17,4 +17,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test packages/core/test/*.test.js
+      - run: node --test packages/core/test/*.test.js packages/mcp/test/*.test.js
