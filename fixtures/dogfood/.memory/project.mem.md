@@ -88,3 +88,9 @@ Reversible: split later is easy, merge later is painful.
 
 ## insight: Recall uses light stemming; the es-suffix rule broke license/licenses matching and was removed
 `mnemo tybs1yev | src: agent | updated: 2026-08-10 | tags: retrieval`
+
+## insight: Run the test suite on a second OS before publishing — first Windows run exposed three portability bugs in one day
+`mnemo yv76come | src: agent | updated: 2026-08-10 | tags: portability, process`
+
+## insight: Windows checkouts use CRLF: parsers must strip trailing CR before regex anchors, and tests must use fileURLToPath, never URL.pathname
+`mnemo 4jhtijfm | src: agent | updated: 2026-08-10 | tags: portability, parser`

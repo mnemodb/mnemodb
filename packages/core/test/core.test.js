@@ -36,7 +36,7 @@ test('dogfood store parses fully with no error diagnostics', () => {
   const allDiags = store.docs.flatMap((d) => d.diagnostics);
   assert.deepEqual(allDiags.filter((d) => d.level === 'error'), []);
   const entries = store.docs.reduce((n, d) => n + d.entries.length, 0);
-  assert.equal(entries, 19);
+  assert.equal(entries, 21);
 });
 
 test('index derivation excludes cold tier by default', () => {
@@ -221,4 +221,17 @@ test('importNumberedDir maps records to entries and wires supersession', async (
   const reparsed = parse(serialize(doc));
   assert.equal(reparsed.entries.length, 2);
   assert.equal(reparsed.entries[0].type, 'insight');
+});
+
+test('CRLF documents (Windows checkouts) parse with correct types and stay byte-stable', () => {
+  const src = '---\r\nmnemo: "0.1"\r\nscope: project\r\ntitle: "crlf"\r\n---\r\n\r\n' +
+    '## decision: CRLF files parse correctly\r\n`mnemo crlf01 | src: user | conf: high`\r\n\r\nBody line.\r\n';
+  const doc = parse(src);
+  assert.ok(doc.frontMatter, 'front matter detected despite CRLF');
+  assert.equal(doc.frontMatter.mnemo, '0.1');
+  assert.equal(doc.entries.length, 1);
+  assert.equal(doc.entries[0].type, 'decision', 'typed entry, not degraded to note');
+  assert.equal(doc.entries[0].meta.id, 'crlf01');
+  assert.equal(doc.entries[0].meta.conf, 'high');
+  assert.equal(serialize(doc), src, 'CRLF bytes preserved exactly on round-trip');
 });

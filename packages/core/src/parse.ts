@@ -25,13 +25,14 @@ export function parse(source: string, path?: string): MemDoc {
   // --- Front matter (spec §4): only at byte 0, delimited by --- lines.
   let frontMatterRaw: string | null = null;
   let frontMatter: FrontMatter | null = null;
-  if (rest.startsWith('---\n') || rest === '---') {
+  const fmOpen = rest.startsWith('---\n') ? 4 : rest.startsWith('---\r\n') ? 5 : 0;
+  if (fmOpen > 0 || rest === '---') {
     const end = rest.indexOf('\n---', 3);
     const endLineBreak = end >= 0 ? rest.indexOf('\n', end + 1) : -1;
     if (end >= 0) {
       const rawEnd = endLineBreak >= 0 ? endLineBreak + 1 : rest.length;
       frontMatterRaw = rest.slice(0, rawEnd);
-      const inner = rest.slice(4, end);
+      const inner = rest.slice(fmOpen, end);
       frontMatter = parseFrontMatter(inner, diagnostics);
       rest = rest.slice(rawEnd);
       lineOffset = countLines(frontMatterRaw);
@@ -71,7 +72,9 @@ export function parse(source: string, path?: string): MemDoc {
 function parseEntry(
   blockLines: string[], raw: string, line: number, diagnostics: Diagnostic[],
 ): Entry {
-  const heading = blockLines[0];
+  // CRLF tolerance (spec §11: degrade never, and Windows checkouts use \r\n):
+  // strip a trailing \r before matching; raw text is preserved untouched.
+  const heading = blockLines[0].endsWith('\r') ? blockLines[0].slice(0, -1) : blockLines[0];
   const m = HEADING_RE.exec(heading);
   // HEADING_RE always matches a '## ' line; type group may be absent (untyped).
   const type = m?.[1] ?? 'note';
