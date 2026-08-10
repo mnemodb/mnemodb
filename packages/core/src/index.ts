@@ -8,3 +8,7 @@ export { ttlDays, isExpired, isStale } from './lifecycle.js';
 export { doctor, estimateTokens } from './validate.js';
 export type { DoctorReport } from './validate.js';
 export { mergeDocs } from './merge.js';
+export { planCompaction, applyCompaction, writeFileAtomic } from './compact.js';
+export type { CompactPlan, CompactMove } from './compact.js';
+export { migrateProseFile, importNumberedDir } from './migrate.js';
+export type { ImportedEntry } from './migrate.js';

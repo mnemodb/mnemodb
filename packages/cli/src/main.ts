@@ -4,7 +4,10 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   loadStore, deriveIndex, doctor, liveEntries,
+  planCompaction, applyCompaction, writeFileAtomic,
+  migrateProseFile, importNumberedDir, appendEntry, parse, serialize,
 } from '@mnemodb/core';
+import { readFileSync } from 'node:fs';
 
 const [, , command = 'help', ...args] = process.argv;
 const target = args.find((a) => !a.startsWith('--')) ?? '.';
@@ -95,6 +98,57 @@ function cmdDoctor(dir: string): number {
   return errors.length > 0 ? 1 : 0;
 }
 
+function cmdCompact(dir: string): number {
+  const store = loadStore(dir);
+  const plan = planCompaction(store);
+  if (plan.moves.length === 0) {
+    console.log('Nothing to compact — no expired or superseded entries outside the archive.');
+    return 0;
+  }
+  for (const m of plan.moves) {
+    console.log(`  ${m.reason.padEnd(10)} [${m.type}] ${m.id ?? '----'} — ${m.statement.slice(0, 60)}  (${m.from})`);
+  }
+  if (!flags.has('--write')) {
+    console.log(`\n${plan.moves.length} entries would move to the archive. Dry run — pass --write to apply.`);
+    return 0;
+  }
+  const written = applyCompaction(store, plan);
+  console.log(`\nMoved ${plan.moves.length} entries to the archive. Rewrote: ${written.join(', ')}`);
+  console.log('Review the diff, then commit.');
+  return 0;
+}
+
+function cmdMigrate(source: string): number {
+  if (!source || source === '.') {
+    console.error('usage: mnemo migrate <CLAUDE.md|AGENTS.md|numbered-dir> [--type decision|insight] [--into <store.mem.md>]');
+    return 1;
+  }
+  const typeFlag = args.find((a) => a.startsWith('--type='))?.slice(7)
+    ?? (flags.has('--type') ? args[args.indexOf('--type') + 1] : undefined);
+  const isDir = existsSync(source) && !source.endsWith('.md');
+  if (!isDir) {
+    // Prose file → new store file with the prose as preamble. Original untouched.
+    const out = source.replace(/\.md$/i, '') + '.mem.md';
+    if (existsSync(out)) { console.error(`${out} already exists.`); return 1; }
+    writeFileAtomic(out, migrateProseFile(source));
+    console.log(`Wrote ${out} — your original ${source} is untouched.`);
+    console.log('Everything migrated as preamble (always-loaded). Structure it into typed entries over time.');
+    return 0;
+  }
+  // Numbered dir → typed entries appended to a target store file.
+  const intoIdx = args.indexOf('--into');
+  const target = intoIdx >= 0 ? args[intoIdx + 1] : 'imported.mem.md';
+  const entries = importNumberedDir(source, { type: typeFlag ?? 'decision' });
+  if (entries.length === 0) { console.error(`No numbered records (NNNN-slug.md) found in ${source}.`); return 1; }
+  const doc = existsSync(target)
+    ? parse(readFileSync(target, 'utf8'), target)
+    : parse(`---\nmnemo: "0.1"\nscope: project\ntitle: "imported from ${source}"\nupdated: ${today()}\n---\n`, target);
+  for (const e of entries) appendEntry(doc, e);
+  writeFileAtomic(target, serialize(doc));
+  console.log(`Imported ${entries.length} records from ${source} into ${target} (type: ${typeFlag ?? 'decision'}).`);
+  return 0;
+}
+
 function help(): number {
   console.log(`mnemo — MnemoDB agent memory CLI (spec v0.1)
 
@@ -105,6 +159,9 @@ commands:
   list [dir]      index of all entries (--all includes cold tier)
   show <id>       print one entry verbatim
   doctor [dir]    lint the store: damage, duplicates, expiry, budget
+  compact [dir]   move expired/superseded entries to the archive (dry-run; --write to apply)
+  migrate <src>   CLAUDE.md/AGENTS.md → .mem.md preamble, or numbered dir (ADRs,
+                  learning-records) → typed entries (--type, --into <file>)
 `);
   return 0;
 }
@@ -114,5 +171,7 @@ const exit =
   command === 'list' ? cmdList(target) :
   command === 'show' ? cmdShow(args[1] ? args[0] : '.', args[1] ?? args[0]) :
   command === 'doctor' ? cmdDoctor(target) :
+  command === 'compact' ? cmdCompact(target) :
+  command === 'migrate' ? cmdMigrate(target) :
   help();
 process.exit(exit);

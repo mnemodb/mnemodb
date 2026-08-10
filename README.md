@@ -1,5 +1,7 @@
 # MnemoDB
 
+[![CI](https://github.com/mnemodb/mnemodb/actions/workflows/ci.yml/badge.svg)](https://github.com/mnemodb/mnemodb/actions/workflows/ci.yml)
+
 **The agent memory format — a database whose files you can read.**
 
 MnemoDB is a plain-text, Markdown-compatible file format (`.mem.md`) for the

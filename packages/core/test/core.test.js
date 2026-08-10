@@ -151,3 +151,73 @@ test('untyped markdown file (CLAUDE.md) is a valid all-preamble document', () =>
   assert.equal(doc.preamble, src);
   assert.equal(serialize(doc), src);
 });
+
+test('compaction plan moves superseded entries to archive; apply is atomic and reparseable', async () => {
+  const { mkdtempSync, cpSync, readFileSync: rf } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { planCompaction, applyCompaction } = await import('../dist/index.js');
+  const tmp = mkdtempSync(join(tmpdir(), 'compact-'));
+  cpSync(DOGFOOD, tmp, { recursive: true });
+  const store = loadStore(tmp);
+  const plan = planCompaction(store, new Date('2026-08-10'));
+  const movedIds = plan.moves.map((m) => m.id).sort();
+  assert.deepEqual(movedIds, ['l1cx', 'r3po'], 'both superseded todos move');
+  assert.ok(plan.moves.every((m) => m.reason === 'superseded'));
+  applyCompaction(store, plan);
+  const after = loadStore(tmp);
+  const report = doctor(after);
+  assert.deepEqual(report.diagnostics.filter((d) => d.level === 'error'), []);
+  const archive = after.docs.find((d) => d.path.endsWith('archive.mem.md'));
+  const archiveIds = archive.entries.map((e) => e.meta.id).sort();
+  assert.deepEqual(archiveIds, ['a0f1', 'l1cx', 'r3po']);
+  assert.ok(archive.entries.every((e) => e.meta.id !== 'a0f1' ? e.meta.pin === 'cold' : true));
+});
+
+test('compaction with future clock also expires the episode', async () => {
+  const { mkdtempSync, cpSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { planCompaction } = await import('../dist/index.js');
+  const tmp = mkdtempSync(join(tmpdir(), 'compact2-'));
+  cpSync(DOGFOOD, tmp, { recursive: true });
+  const plan = planCompaction(loadStore(tmp), new Date('2027-01-01'));
+  const reasons = new Set(plan.moves.map((m) => m.reason));
+  assert.ok(reasons.has('expired'), 'episode expires under future clock');
+  assert.ok(plan.moves.some((m) => m.id === 's8dy'));
+});
+
+test('migrateProseFile wraps CLAUDE.md losslessly as preamble', async () => {
+  const { mkdtempSync, writeFileSync: wf } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { migrateProseFile } = await import('../dist/index.js');
+  const tmp = mkdtempSync(join(tmpdir(), 'mig-'));
+  const src = join(tmp, 'CLAUDE.md');
+  const original = '# Rules\n\nAlways run tests.\nNever push to main.\n';
+  wf(src, original);
+  const out = migrateProseFile(src, { today: '2026-08-10' });
+  const doc = parse(out);
+  assert.equal(doc.frontMatter.mnemo, '0.1');
+  assert.equal(doc.preamble, '\n' + original, 'prose preserved byte-for-byte after front matter gap');
+  assert.equal(doc.entries.length, 0);
+});
+
+test('importNumberedDir maps records to entries and wires supersession', async () => {
+  const { mkdtempSync, writeFileSync: wf, mkdirSync: mkd } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { importNumberedDir, appendEntry: append } = await import('../dist/index.js');
+  const tmp = mkdtempSync(join(tmpdir(), 'adr-'));
+  const dir = join(tmp, 'learning-records');
+  mkd(dir);
+  wf(join(dir, '0001-old-belief.md'), '# We thought X was true\n\nStatus: superseded by LR-0002\n\nDetails.\n');
+  wf(join(dir, '0002-corrected.md'), '# Actually Y is true\n\nEvidence: test run.\n');
+  const entries = importNumberedDir(dir, { type: 'insight', today: '2026-08-10' });
+  assert.equal(entries.length, 2);
+  const older = entries[0], newer = entries[1];
+  assert.equal(older.statement, 'We thought X was true');
+  assert.deepEqual(newer.meta.supersedes, [older.meta.id], 'newer supersedes older');
+  // Round-trip through a document
+  const doc = parse('---\nmnemo: "0.1"\nscope: project\ntitle: "t"\n---\n');
+  for (const e of entries) append(doc, e);
+  const reparsed = parse(serialize(doc));
+  assert.equal(reparsed.entries.length, 2);
+  assert.equal(reparsed.entries[0].type, 'insight');
+});
