@@ -101,9 +101,12 @@ Full walkthrough: **[docs/USAGE.md](docs/USAGE.md)**.
 ## Status
 
 **v0.1 — early. Real feedback wanted, not stars.** Published to npm; security-
-hardened by an adversarial audit; 46 tests, enforced as a ship gate on every
-release. If you try it, the useful questions are: did it ever recall something
-genuinely helpful, did it get in your way, and did you trust — and ever actually
-open — the files? Open an issue with honest notes.
+hardened by an adversarial audit; enforced as a ship gate on every release. If
+you try it, the useful questions are: did it ever recall something genuinely
+helpful, did it get in your way, and did you trust — and ever actually open —
+the files? Open an issue with honest notes.
+
+Where it's headed: **[ROADMAP.md](ROADMAP.md)** — priorities are driven by
+feedback, so if something there (or not there) matters to you, say so in an issue.
 
 License: Apache-2.0 (code), CC BY 4.0 (spec). See [CHANGELOG.md](CHANGELOG.md).
