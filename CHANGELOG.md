@@ -6,6 +6,37 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.6] — 2026-08-12
+
+Ship the Claude Code plugin for real, make writes land where you look for them,
+and position MnemoDB honestly next to a platform's built-in memory.
+
+### Added
+- **Claude Code plugin** (`mnemodb`) — bundles the MCP server, an `agent-memory`
+  skill, and a session-start hook, so memory works on install with no `CLAUDE.md`
+  snippet to paste (`/plugin marketplace add mnemodb/mnemodb`).
+- `mnemo migrate <dir> --claude-memory` — import a Claude Code native-memory
+  directory (`~/.claude/projects/<p>/memory/`) as typed entries, to graduate an
+  existing native-memory corpus into portable, auditable `.mem.md` form.
+- `examples/trust-model-demo.mjs` — a runnable demonstration of the trust model:
+  a tool-sourced (untrusted) memory can neither supersede nor forget a user rule.
+- Security ship-gate extended to the `forget`/`pin` write paths; the plugin ships
+  its own adversarial test suite, run in CI.
+
+### Fixed
+- The plugin's MCP server now pins the store to the project root via
+  `MNEMO_STORE=${CLAUDE_PROJECT_DIR}`, so `memory_remember` writes always land in
+  the project's store instead of wherever the server's working directory happened
+  to be — the "wrote a memory but `mnemo list` is empty" failure.
+- Plugin manifest no longer double-declares the standard `hooks/hooks.json`
+  (Claude Code auto-loads it), which caused a "Duplicate hooks file" load error.
+
+### Changed
+- The plugin skill and hook now position MnemoDB for durable, structured,
+  portable, trusted memory — decisions, facts, and preferences worth keeping
+  deliberately — rather than as a replacement for a platform's automatic memory,
+  which a tool call structurally cannot match at silent auto-capture.
+
 ## [0.1.5] — 2026-08-11
 
 The memory-semantic tool surface — the answer to "why this over a plain memory
