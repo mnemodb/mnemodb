@@ -67,9 +67,33 @@ npx @mnemodb/cli show <id>   # one entry in full
 npx @mnemodb/cli doctor      # health: stale, contradictions, budget, damage
 ```
 
-Or, from inside the agent, just ask: *"list my memories"* (it calls `memory_list`). Or open `.memory/project.mem.md` in your editor. If the "you can read your
+Or open `.memory/project.mem.md` in your editor. If the "you can read your
 agent's memory" pitch is real, this is where you'll feel it — and if you never
 open it, that's useful feedback too.
+
+## 3b. Or just ask the agent (the memory-semantic tools)
+
+Inside Claude Code you don't need the CLI — the MCP server exposes 11 tools the
+agent calls in plain language. These are the operations a generic memory folder
+can't do, and they're the reason to use MnemoDB over one:
+
+| Say to the agent… | Tool | What it does |
+|---|---|---|
+| "list my memories" / "what do you know about this project?" | `memory_list` | the whole index, no query needed |
+| "recall what we decided about auth" | `memory_recall` | ranked search, with provenance + `untrusted` flags |
+| "show me entry c4d1 in full" | `memory_show` | one entry, body + all metadata + lifecycle status |
+| "what's the history of that decision?" | `memory_history` | supersession lineage — what it replaced, what replaced it |
+| "give me stats on my memory" | `memory_stats` | counts by type/scope/provenance, budget load, staleness |
+| "remember that we use pnpm, never npm" | `memory_remember` | store a typed entry (deduped, provenance-stamped) |
+| "forget that note about the old API" | `memory_forget` | auditable, recoverable soft-delete (can't erase a user entry) |
+| "pin the deploy rule so it's always loaded" | `memory_pin` | set the load tier; won't pin untrusted content to always |
+| "check my memory for problems" | `memory_review` | stale entries, contradictions, budget warnings |
+| "compact my memory" | `memory_compact` | archive expired/superseded entries (dry-run first) |
+
+The write operations carry the safety rules with them: `memory_forget` refuses to
+erase a higher-trust (your) memory, and `memory_pin` refuses to promote
+tool-sourced content into every session — so an injected "forget X" or "always
+do Y" can't turn your memory against you.
 
 ## 4. Keep it healthy (occasionally)
 

@@ -55,6 +55,13 @@ file doesn't:
   exactly what your agent learned or changed — no opaque database, no cloud
   dashboard. `mnemo doctor` lints for staleness, contradictions, and damage.
 
+And the tools are *memory-semantic*, not raw file ops. A generic memory tool
+gives the model create/delete/replace on a folder; MnemoDB gives it operations
+that understand the structure — inspect an entry's full history, ask the store
+to report on itself, forget something *auditably and recoverably* (and never
+erase a higher-trust memory), or change what loads into context — each with the
+trust and lifecycle rules built in.
+
 **When MnemoDB is worth it:** you want the *agent* to maintain memory itself
 across many sessions without it decaying, you work across more than one AI tool,
 or you need to audit and trust what's in memory. **When it's probably overkill:**
@@ -87,7 +94,7 @@ Full walkthrough: **[docs/USAGE.md](docs/USAGE.md)**.
 - [`spec/SPEC-v0.1.md`](spec/SPEC-v0.1.md) — the format specification (CC BY 4.0)
 - [`packages/core`](packages/core) — `@mnemodb/core`: parse, serialize, index, resolve, lifecycle, merge, validate (TypeScript, zero runtime deps, Apache-2.0)
 - [`packages/cli`](packages/cli) — the `mnemo` CLI: `init`, `list`, `show`, `doctor`, `compact`, `migrate`
-- [`packages/mcp`](packages/mcp) — `@mnemodb/mcp`: the memory engine as an MCP server (`memory_recall`, `memory_remember`, `memory_review`, `memory_compact`, `memory_boot`) for Claude Code, Cursor, and any MCP client
+- [`packages/mcp`](packages/mcp) — `@mnemodb/mcp`: the memory engine as an MCP server for Claude Code, Cursor, and any MCP client. **11 memory-semantic tools** — things a plain memory *folder* can't do: `memory_recall`, `memory_list`, `memory_show`, `memory_history` (supersession lineage), `memory_stats` (the store's self-report), `memory_remember`, `memory_forget` (auditable, trust-gated), `memory_pin` (context-budget control), `memory_review`, `memory_compact`, `memory_boot`
 - [`spec/AUDIT-2026-08-10.md`](spec/AUDIT-2026-08-10.md) — the adversarial security audit
 - [`fixtures/`](fixtures) — conformance corpus; `dogfood/` is MnemoDB's own real memory store, kept in MnemoDB format since day one
 
