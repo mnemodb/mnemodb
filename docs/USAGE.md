@@ -25,6 +25,17 @@ npx @mnemodb/cli migrate CLAUDE.md
 Everything in it becomes your always-loaded preamble; structured memories accrete
 below it over time.
 
+Already have a project's worth of **Claude Code native memory**
+(`~/.claude/projects/<project>/memory/`)? Graduate it into portable, auditable
+form:
+
+```
+npx @mnemodb/cli migrate ~/.claude/projects/<project>/memory --claude-memory --into .memory/imported.mem.md
+```
+
+Each topic file becomes a typed entry (`src: agent`), preserved in full. Review
+it, then keep whichever store you want as canonical.
+
 ## 2. Make the agent use it
 
 Install the MCP server (once):

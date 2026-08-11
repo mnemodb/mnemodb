@@ -107,6 +107,7 @@ Full walkthrough: **[docs/USAGE.md](docs/USAGE.md)**.
 - [`packages/core`](packages/core) — `@mnemodb/core`: parse, serialize, index, resolve, lifecycle, merge, validate (TypeScript, zero runtime deps, Apache-2.0)
 - [`packages/cli`](packages/cli) — the `mnemo` CLI: `init`, `list`, `show`, `doctor`, `compact`, `migrate`
 - [`packages/mcp`](packages/mcp) — `@mnemodb/mcp`: the memory engine as an MCP server for Claude Code, Cursor, and any MCP client. **11 memory-semantic tools** — things a plain memory *folder* can't do: `memory_recall`, `memory_list`, `memory_show`, `memory_history` (supersession lineage), `memory_stats` (the store's self-report), `memory_remember`, `memory_forget` (auditable, trust-gated), `memory_pin` (context-budget control), `memory_review`, `memory_compact`, `memory_boot`
+- [`examples/trust-model-demo.mjs`](examples/trust-model-demo.mjs) — a runnable proof of the trust model: a tool-sourced (untrusted) memory can neither supersede nor forget a memory you wrote. The one thing a provenance-free memory folder can't do. Run it: `node examples/trust-model-demo.mjs`
 - [`spec/AUDIT-2026-08-10.md`](spec/AUDIT-2026-08-10.md) — the adversarial security audit
 - [`fixtures/`](fixtures) — conformance corpus; `dogfood/` is MnemoDB's own real memory store, kept in MnemoDB format since day one
 

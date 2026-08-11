@@ -16,15 +16,16 @@ so. That's how items move up.
   remember, forget, pin, review, compact, boot).
 - Security: provenance + trust model, injection defense, adversarial ship-gate.
 - i18n search for space-delimited scripts (Hebrew, Cyrillic, Arabic, Greek…).
+- **Claude Code plugin** — MCP server + `agent-memory` skill + session-start
+  hook, so memory works on install (`/plugin marketplace add mnemodb/mnemodb`).
+  The MCP store is pinned to the project root, so writes can't scatter.
+- Native-memory import — `mnemo migrate <dir> --claude-memory` brings a Claude
+  Code memory dir into typed `.mem.md` form.
 
 ## Likely next (v0.2 candidates)
 
 Ordered by current guess at leverage; real use may reorder them.
 
-- **Auto-usage Claude Code plugin** — a skill + session-start hook so memory
-  works on install without pasting an instruction into `CLAUDE.md`. Highest
-  usability leverage; the difference between "works if configured" and "just
-  works."
 - **Git merge driver** — wire the existing CRDT merge (`mergeDocs`) in as a real
   git merge driver, so two branches editing the *same* entry's body resolve
   automatically instead of throwing a line conflict.
@@ -42,8 +43,10 @@ Ordered by current guess at leverage; real use may reorder them.
 - **Semantic search** — optional embedding-based recall alongside keyword, for
   fuzzy queries. Held until real use shows keyword recall is missing things
   (it's a heavier dependency).
-- **Adapter for Claude's native memory tool** — let Claude's built-in memory
-  write `.mem.md`, so you get its retrieval *plus* MnemoDB's structure,
+- **Adapter for Claude's native memory tool** — the *import* direction shipped
+  in 0.1.6 (`mnemo migrate --claude-memory` reads a native-memory dir into
+  `.mem.md`). Still open: the reverse — let Claude's built-in memory *write*
+  `.mem.md` directly, so you get its auto-capture *plus* MnemoDB's structure,
   portability, and auditability. Complement, not competitor.
 - **Persistent index** — use `manifest.mem.md` as a real cache for very large
   stores (tens of thousands of entries).
