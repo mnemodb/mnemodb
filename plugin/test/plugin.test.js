@@ -27,9 +27,22 @@ test('plugin declares only expected surfaces (no excess capability)', () => {
   const p = json(`${ROOT}.claude-plugin/plugin.json`);
   const surfaces = Object.keys(p).filter((k) =>
     ['mcpServers', 'skills', 'hooks', 'commands', 'agents', 'userConfig', 'channels', 'lspServers'].includes(k));
-  assert.deepEqual(surfaces.sort(), ['hooks', 'mcpServers', 'skills']);
+  // NOTE: no 'hooks' key here on purpose. Claude Code auto-loads the standard
+  // hooks/hooks.json; declaring it in the manifest too makes it load twice and
+  // the plugin fails with "Duplicate hooks file detected". The manifest.hooks
+  // field is only for ADDITIONAL hook files in non-standard locations.
+  assert.deepEqual(surfaces.sort(), ['mcpServers', 'skills']);
+  assert.ok(!('hooks' in p),
+    'do not declare the standard hooks/hooks.json in the manifest — it auto-loads (double-load bug)');
   assert.ok(!('userConfig' in p), 'no credential prompts');
   assert.ok(!('channels' in p), 'no messaging channels');
+});
+
+test('the session-start hook still ships at the auto-loaded standard path', () => {
+  // Removing it from the manifest must NOT mean removing the hook itself —
+  // it loads from this standard location automatically.
+  const h = json(`${ROOT}hooks/hooks.json`);
+  assert.ok(h.hooks?.SessionStart, 'SessionStart hook present at hooks/hooks.json');
 });
 
 test('the MCP server runs only the published, audited package', () => {
