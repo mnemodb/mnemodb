@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "mnemodb",
+  "displayName": "MnemoDB — agent memory",
+  "version": "0.1.0",
+  "description": "Persistent, human-readable memory for your agent. Bundles the MnemoDB MCP server, a skill that teaches when to recall and remember, and a session-start hook — so memory works on install, no config to paste.",
+  "author": { "name": "Ziv (zivuch)" },
+  "homepage": "https://github.com/mnemodb/mnemodb",
+  "repository": "https://github.com/mnemodb/mnemodb",
+  "license": "Apache-2.0",
+  "keywords": ["memory", "agent", "mcp", "mnemodb"],
+  "mcpServers": "./.mcp.json",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

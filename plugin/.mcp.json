@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mnemodb": {
+      "command": "npx",
+      "args": ["-y", "@mnemodb/mcp"]
+    }
+  }
+}

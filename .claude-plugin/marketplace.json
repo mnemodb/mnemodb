@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "mnemodb",
+  "version": "0.1.0",
+  "description": "MnemoDB — persistent, human-readable memory for AI agents",
+  "owner": { "name": "Ziv (zivuch)" },
+  "plugins": [
+    {
+      "name": "mnemodb",
+      "description": "Persistent agent memory: MCP server + skill + session-start hook, so memory works on install.",
+      "version": "0.1.0",
+      "source": "./plugin",
+      "category": "productivity"
+    }
+  ]
+}

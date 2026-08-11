@@ -70,6 +70,18 @@ that up front.
 
 ## How to use it
 
+**Easiest — the Claude Code plugin** (bundles the MCP server, a skill that
+teaches the agent *when* to recall/remember, and a session-start hook, so it
+works with no config to paste):
+
+```
+/plugin marketplace add mnemodb/mnemodb
+/plugin install mnemodb@mnemodb
+npx @mnemodb/cli init      # create a store in your project, then restart Claude Code
+```
+
+**Manual — just the MCP server** (you add the usage instruction yourself):
+
 ```
 # 1. create a store in your project (or point at an existing CLAUDE.md)
 npx @mnemodb/cli init
