@@ -61,15 +61,19 @@ test('the MCP server pins the store to the project dir (not the launch cwd)', ()
   assert.equal(s.env?.MNEMO_STORE, '${CLAUDE_PROJECT_DIR}');
 });
 
-test('the skill and hook steer the model to MnemoDB over built-in memory', () => {
-  // The field failure was the model using Claude Code's auto-memory instead of
-  // calling memory_remember. Both surfaces must explicitly claim the memory
-  // system, or nothing lands in the .mem.md store.
+test('the skill and hook position MnemoDB for durable memory, not as a native-memory replacement', () => {
+  // Dogfooding showed native auto-memory is platform-automatic while
+  // memory_remember needs the model to choose to call it — MnemoDB can't win
+  // the silent-auto-capture race and shouldn't claim to. Both surfaces frame it
+  // around DURABLE memory (call memory_remember when it emerges) and must NOT
+  // overpromise replacing built-in/automatic memory.
   const skill = read(`${ROOT}skills/agent-memory/SKILL.md`);
   const hook = read(`${ROOT}scripts/session-start.sh`);
   for (const [name, txt] of [['skill', skill], ['hook', hook]]) {
-    assert.match(txt, /(instead of|in place of) any built-in or automatic memory/i,
-      `${name} must tell the model to use MnemoDB instead of built-in memory`);
+    assert.match(txt, /memory_remember/, `${name} must tell the model to call memory_remember`);
+    assert.match(txt, /durable/i, `${name} must frame MnemoDB around durable memory`);
+    assert.ok(!/(instead of|in place of) any built-in or automatic memory/i.test(txt),
+      `${name} must not overpromise replacing native auto-memory (structurally unwinnable)`);
   }
 });
 

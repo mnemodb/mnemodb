@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import {
   loadStore, deriveIndex, doctor, liveEntries,
   planCompaction, applyCompaction, writeFileAtomic, withStoreLock,
-  migrateProseFile, importNumberedDir, appendEntry, parse, serialize,
+  migrateProseFile, importNumberedDir, importClaudeMemoryDir, appendEntry, parse, serialize,
 } from '@mnemodb/core';
 import { readFileSync } from 'node:fs';
 
@@ -130,7 +130,7 @@ function cmdCompact(dir: string): number {
 
 function cmdMigrate(source: string): number {
   if (!source || source === '.') {
-    console.error('usage: mnemo migrate <CLAUDE.md|AGENTS.md|numbered-dir> [--type decision|insight] [--into <store.mem.md>]');
+    console.error('usage: mnemo migrate <CLAUDE.md|AGENTS.md|numbered-dir|memory-dir --claude-memory> [--type <type>] [--into <store.mem.md>]');
     return 1;
   }
   const typeFlag = args.find((a) => a.startsWith('--type='))?.slice(7)
@@ -145,11 +145,21 @@ function cmdMigrate(source: string): number {
     console.log('Everything migrated as preamble (always-loaded). Structure it into typed entries over time.');
     return 0;
   }
-  // Numbered dir → typed entries appended to a target store file.
+  // Directory → typed entries appended to a target store file.
+  //   --claude-memory : a Claude Code native-memory dir (slug-named .md topics)
+  //   default         : ADR-style numbered records (NNNN-slug.md)
   const intoIdx = args.indexOf('--into');
   const target = intoIdx >= 0 ? args[intoIdx + 1] : 'imported.mem.md';
-  const entries = importNumberedDir(source, { type: typeFlag ?? 'decision' });
-  if (entries.length === 0) { console.error(`No numbered records (NNNN-slug.md) found in ${source}.`); return 1; }
+  const claudeMem = flags.has('--claude-memory');
+  const entries = claudeMem
+    ? importClaudeMemoryDir(source, { type: typeFlag })
+    : importNumberedDir(source, { type: typeFlag ?? 'decision' });
+  if (entries.length === 0) {
+    console.error(claudeMem
+      ? `No .md files found in ${source}.`
+      : `No numbered records (NNNN-slug.md) found in ${source} (use --claude-memory for a Claude Code memory dir).`);
+    return 1;
+  }
   const doc = existsSync(target)
     ? parse(readFileSync(target, 'utf8'), target)
     : parse(`---\nmnemo: "0.1"\nscope: project\ntitle: "imported from ${source}"\nupdated: ${today()}\n---\n`, target);
@@ -170,8 +180,9 @@ commands:
   show <id>       print one entry verbatim
   doctor [dir]    lint the store: damage, duplicates, expiry, budget
   compact [dir]   move expired/superseded entries to the archive (dry-run; --write to apply)
-  migrate <src>   CLAUDE.md/AGENTS.md → .mem.md preamble, or numbered dir (ADRs,
-                  learning-records) → typed entries (--type, --into <file>)
+  migrate <src>   CLAUDE.md/AGENTS.md → .mem.md preamble; numbered dir (ADRs,
+                  learning-records) → typed entries; or a Claude Code memory
+                  dir with --claude-memory (--type, --into <file>)
 `);
   return 0;
 }

@@ -223,6 +223,52 @@ test('importNumberedDir maps records to entries and wires supersession', async (
   assert.equal(reparsed.entries[0].type, 'insight');
 });
 
+test('importClaudeMemoryDir maps native memory topic files to agent-sourced entries', async () => {
+  const { mkdtempSync, writeFileSync: wf } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { importClaudeMemoryDir, appendEntry: append } = await import('../dist/index.js');
+  const dir = mkdtempSync(join(tmpdir(), 'claude-mem-'));
+  // Claude Code native memory: slug-named topic files + a MEMORY.md index.
+  wf(join(dir, 'restmittel-cent-genau.md'), '# Cent-exact amount comparisons\n\nEUR only stripped, never asserted (decision 2026-08-12).\n');
+  wf(join(dir, 'avd-run-workflow.md'), 'You upload changed files to AVD and run on DEV yourself.\n\nNo local dry-runs.\n');
+  wf(join(dir, 'MEMORY.md'), '# Project memory index\n\nSee topic files.\n');
+
+  const entries = importClaudeMemoryDir(dir, { today: '2026-08-12' });
+  assert.equal(entries.length, 3, 'every .md file becomes an entry, MEMORY.md included');
+
+  const cent = entries.find((e) => e.sourceFile.endsWith('restmittel-cent-genau.md'));
+  assert.equal(cent.statement, 'Cent-exact amount comparisons', 'first heading becomes the statement');
+  assert.equal(cent.type, 'note', 'defaults to note');
+  assert.equal(cent.meta.src, 'agent', 'provenance is agent — Claude wrote these, not the user');
+  assert.ok(cent.meta.tags.includes('imported') && cent.meta.tags.includes('claude-memory'));
+  assert.ok(cent.meta.tags.includes('restmittel'), 'slug tokens become tags');
+  assert.match(cent.body, /EUR only stripped/, 'full file preserved in the body (lossless)');
+
+  // A file with no heading falls back to its first line for the statement.
+  const avd = entries.find((e) => e.sourceFile.endsWith('avd-run-workflow.md'));
+  assert.equal(avd.statement, 'You upload changed files to AVD and run on DEV yourself.');
+
+  // Round-trips through a real store document.
+  const doc = parse('---\nmnemo: "0.1"\nscope: project\ntitle: "t"\n---\n');
+  for (const e of entries) append(doc, e);
+  const reparsed = parse(serialize(doc));
+  assert.equal(reparsed.entries.length, 3);
+  assert.ok(reparsed.entries.every((e) => e.meta.src === 'agent'));
+});
+
+test('importClaudeMemoryDir clamps a long heading to a one-line statement without losing the body', async () => {
+  const { mkdtempSync, writeFileSync: wf } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { importClaudeMemoryDir } = await import('../dist/index.js');
+  const dir = mkdtempSync(join(tmpdir(), 'claude-mem2-'));
+  const longLine = 'x'.repeat(400);
+  wf(join(dir, 'huge.md'), `# ${longLine}\n\ntail content\n`);
+  const [e] = importClaudeMemoryDir(dir, { today: '2026-08-12' });
+  assert.ok(e.statement.length <= 160, `statement clamped, got ${e.statement.length}`);
+  assert.match(e.body, /tail content/, 'body still has everything');
+  assert.match(e.body, /x{400}/, 'the full long heading survives in the body');
+});
+
 test('CRLF documents (Windows checkouts) parse with correct types and stay byte-stable', () => {
   const src = '---\r\nmnemo: "0.1"\r\nscope: project\r\ntitle: "crlf"\r\n---\r\n\r\n' +
     '## decision: CRLF files parse correctly\r\n`mnemo crlf01 | src: user | conf: high`\r\n\r\nBody line.\r\n';

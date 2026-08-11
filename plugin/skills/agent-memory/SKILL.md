@@ -1,6 +1,6 @@
 ---
 name: agent-memory
-description: Persistent cross-session memory for this project via the MnemoDB MCP tools — use these in place of any built-in or automatic memory. Invoke at the start of any non-trivial task to recall relevant prior context (memory_boot, memory_recall), and whenever a durable decision, project fact, user preference, or hard-won insight emerges, to save it (memory_remember). Also for browsing, inspecting, forgetting, or pinning memories.
+description: Durable, structured cross-session memory for this project via the MnemoDB MCP tools — for decisions, project facts, preferences, and insights worth keeping deliberately, structured, auditable, and portable across tools. Invoke at the start of any non-trivial task to recall relevant prior context (memory_boot, memory_recall), and whenever such a durable item emerges, to save it (memory_remember). Also for browsing, inspecting, forgetting, or pinning memories.
 ---
 
 # Agent memory (MnemoDB)
@@ -8,17 +8,21 @@ description: Persistent cross-session memory for this project via the MnemoDB MC
 This project remembers things across sessions through the MnemoDB MCP tools.
 Use them so the user never has to re-explain what was already established.
 
-## This is the memory system for this project
+## What MnemoDB is for
 
-For this project, the MnemoDB `memory_*` tools **are** how you remember and
-recall — use them in place of any built-in or automatic memory you may have.
-When you decide something is worth keeping, do not just note it to yourself or
-rely on memory that reloads automatically; call `memory_remember`, so the fact
-lands in an auditable `.mem.md` file the user can read, diff, and trust. When
-you start a task, don't assume relevant context was auto-loaded — call
-`memory_boot` and `memory_recall` to fetch it. If you find yourself about to
-"remember" or "recall" something without a `memory_*` tool call, that's the
-signal you're reaching for the wrong system.
+MnemoDB is for **durable, high-value memory** — the decisions, project facts,
+user preferences, and hard-won insights someone would want to keep, audit,
+trust, and reuse across sessions and tools. When one of those emerges, call
+`memory_remember`, so it lands as a typed, provenance-stamped entry in an
+auditable `.mem.md` file the user can read, diff, and carry to another tool.
+At the start of a task, call `memory_boot` and `memory_recall` to pull that
+durable context back in.
+
+You do not need to route *everything* here. Ambient session notes and running
+scratch context can stay in whatever built-in memory you have; MnemoDB's job is
+the memory worth keeping *deliberately*. The test for a `memory_remember` call
+is simple: would the user want this specific fact to survive, be auditable, and
+still be true next month? If yes, save it. If it's transient, let it go.
 
 ## When to recall (read)
 
