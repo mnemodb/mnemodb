@@ -30,6 +30,71 @@ export function migrateProseFile(
   return fm + body;
 }
 
+const MD_RE = /\.md$/i;
+const MAX_STATEMENT = 160;
+
+/**
+ * Import a Claude Code native-memory directory
+ * (~/.claude/projects/<project>/memory/) as typed entries.
+ *
+ * Native memory is slug-named topic files (`restmittel-cent-genau.md`,
+ * `avd-run-workflow.md`, …) plus a `MEMORY.md` index — the corpus Claude Code
+ * writes automatically. This brings that whole corpus into MnemoDB so a single
+ * store can be canonical (the roadmap's "adapter for Claude's native memory").
+ *
+ * Each `.md` file becomes one entry: a short derived title is the statement,
+ * the FULL file content is the body (lossless), and provenance is `src: agent`
+ * because Claude authored these, not the user. `MEMORY.md` is imported too and
+ * may overlap the topic files — review and prune with `mnemo compact`/`forget`.
+ * Default type is `note`; retype entries as decisions/facts/prefs over time.
+ */
+export function importClaudeMemoryDir(
+  dir: string, opts?: { type?: string; src?: string; today?: string },
+): ImportedEntry[] {
+  const type = opts?.type ?? 'note';
+  const src = opts?.src ?? 'agent';
+  const date = opts?.today ?? new Date().toISOString().slice(0, 10);
+  const used = new Set<string>();
+  const out: ImportedEntry[] = [];
+
+  for (const f of readdirSync(dir).filter((x) => MD_RE.test(x)).sort()) {
+    const content = readFileSync(join(dir, f), 'utf8');
+    const slug = basename(f).replace(MD_RE, '');
+
+    // Statement: first heading or first non-empty line, de-marked and clamped
+    // to a one-liner. Fallback to the slug. The full file stays in the body,
+    // so truncating the title loses nothing.
+    let statement = '';
+    for (const line of content.split('\n')) {
+      if (line.trim() === '') continue;
+      statement = line.trim().replace(/^#+\s*/, '').replace(/\s+/g, ' ');
+      break;
+    }
+    if (!statement) statement = slug.replace(/[-_]/g, ' ');
+    if (statement.length > MAX_STATEMENT) statement = statement.slice(0, MAX_STATEMENT - 1).trimEnd() + '…';
+
+    const slugTags = slug.split(/[-_]/).filter((t) => t.length > 2).slice(0, 6);
+    const id = generateId(used);
+    used.add(id);
+    const body = content.trim();
+
+    out.push({
+      type,
+      statement,
+      meta: {
+        id,
+        src,
+        updated: date,
+        tags: ['imported', 'claude-memory', ...slugTags],
+      },
+      body: body ? body + '\n' : '',
+      raw: '', line: 0, dirty: true,
+      sourceFile: join(dir, f),
+    });
+  }
+  return out;
+}
+
 const NUMBERED_RE = /^(\d{3,5})-(.+)\.md$/;
 const SUPERSEDED_RE = /superseded[- ]by[:\s]+(?:LR-|ADR-)?0*(\d+)/i;
 
