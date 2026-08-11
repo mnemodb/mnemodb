@@ -9,8 +9,6 @@
  * stamped src: agent — the engine never records user provenance for content
  * the user did not write themselves.
  */
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -19,10 +17,13 @@ import {
   show, history, stats, forget, pin,
 } from './engine.js';
 
+// Resolve the store's base directory. Prefer MNEMO_STORE (the Claude Code
+// plugin sets it to ${CLAUDE_PROJECT_DIR} so writes always land in the
+// project's store, never wherever npx happened to launch us). Fall back to the
+// working directory only when it is unset. `loadStore` handles the .memory/ vs
+// single-file layout underneath whichever base we return.
 function storeDir(): string {
-  if (process.env.MNEMO_STORE) return process.env.MNEMO_STORE;
-  const cwd = process.cwd();
-  return existsSync(join(cwd, '.memory')) ? cwd : cwd;
+  return process.env.MNEMO_STORE ?? process.cwd();
 }
 
 const text = (data: unknown) => ({

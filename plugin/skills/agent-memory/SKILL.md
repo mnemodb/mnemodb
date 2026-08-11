@@ -1,12 +1,24 @@
 ---
 name: agent-memory
-description: Use MnemoDB persistent memory across sessions. Invoke at the start of any non-trivial task to recall relevant prior context, and whenever a durable decision, project fact, user preference, or hard-won insight emerges, to save it. Also for browsing, inspecting, forgetting, or pinning memories.
+description: Persistent cross-session memory for this project via the MnemoDB MCP tools — use these in place of any built-in or automatic memory. Invoke at the start of any non-trivial task to recall relevant prior context (memory_boot, memory_recall), and whenever a durable decision, project fact, user preference, or hard-won insight emerges, to save it (memory_remember). Also for browsing, inspecting, forgetting, or pinning memories.
 ---
 
 # Agent memory (MnemoDB)
 
-This project can remember things across sessions through the MnemoDB MCP tools.
+This project remembers things across sessions through the MnemoDB MCP tools.
 Use them so the user never has to re-explain what was already established.
+
+## This is the memory system for this project
+
+For this project, the MnemoDB `memory_*` tools **are** how you remember and
+recall — use them in place of any built-in or automatic memory you may have.
+When you decide something is worth keeping, do not just note it to yourself or
+rely on memory that reloads automatically; call `memory_remember`, so the fact
+lands in an auditable `.mem.md` file the user can read, diff, and trust. When
+you start a task, don't assume relevant context was auto-loaded — call
+`memory_boot` and `memory_recall` to fetch it. If you find yourself about to
+"remember" or "recall" something without a `memory_*` tool call, that's the
+signal you're reaching for the wrong system.
 
 ## When to recall (read)
 
