@@ -1,6 +1,6 @@
 {
   "name": "mnemodb",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "MnemoDB \u2014 the agent memory format. A database whose files you can read: human-readable .mem.md memory for AI agents. Umbrella package re-exporting @mnemodb/core.",
   "license": "Apache-2.0",
   "author": "Ziv (zivuch)",
@@ -15,7 +15,7 @@
     "CHANGELOG.md"
   ],
   "dependencies": {
-    "@mnemodb/core": "0.1.2"
+    "@mnemodb/core": "0.1.3"
   },
   "keywords": [
     "ai",

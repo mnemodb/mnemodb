@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.3] — 2026-08-11
+
+Documentation-only release. No code changes.
+
+### Changed
+- npm-facing package READMEs (`mnemodb`, `@mnemodb/mcp`) rewritten with a clear
+  what / why / how, including how MnemoDB relates to `CLAUDE.md` and Claude's
+  native memory tool: not a replacement, but the structure, lifecycle,
+  provenance, portability, and auditability layer they don't provide.
+- Root README rewritten to match.
+
 ## [0.1.2] — 2026-08-10
 
 Security-hardening release from a full adversarial audit
@@ -78,6 +89,7 @@ audit. Left published for history; not recommended for use.
   `memory_remember`, `memory_review`, `memory_compact`, `memory_boot`.
 - Conformance fixtures, including the project's own dogfood memory store.
 
+[0.1.3]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.3
 [0.1.2]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.2
 [0.1.1]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.1
 [0.1.0]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.0
