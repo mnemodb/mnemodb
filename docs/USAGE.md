@@ -81,7 +81,7 @@ can't do, and they're the reason to use MnemoDB over one:
 |---|---|---|
 | "list my memories" / "what do you know about this project?" | `memory_list` | the whole index, no query needed |
 | "recall what we decided about auth" | `memory_recall` | ranked search, with provenance + `untrusted` flags |
-| "show me entry c4d1 in full" | `memory_show` | one entry, body + all metadata + lifecycle status |
+| "show me the full decision about cache invalidation" | `memory_show` | one entry, body + all metadata + lifecycle status |
 | "what's the history of that decision?" | `memory_history` | supersession lineage — what it replaced, what replaced it |
 | "give me stats on my memory" | `memory_stats` | counts by type/scope/provenance, budget load, staleness |
 | "remember that we use pnpm, never npm" | `memory_remember` | store a typed entry (deduped, provenance-stamped) |
@@ -89,6 +89,12 @@ can't do, and they're the reason to use MnemoDB over one:
 | "pin the deploy rule so it's always loaded" | `memory_pin` | set the load tier; won't pin untrusted content to always |
 | "check my memory for problems" | `memory_review` | stale entries, contradictions, budget warnings |
 | "compact my memory" | `memory_compact` | archive expired/superseded entries (dry-run first) |
+
+You never need to know entry ids (like `c4d1`). You speak in content — "the
+decision about the database," "that note on the old API" — and the agent resolves
+it to the right entry via recall/list, then uses its id internally to show,
+trace, forget, or pin it. Ids are the machine's handle; you only see them if you
+open the `.mem.md` file yourself.
 
 The write operations carry the safety rules with them: `memory_forget` refuses to
 erase a higher-trust (your) memory, and `memory_pin` refuses to promote
