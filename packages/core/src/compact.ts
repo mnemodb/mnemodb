@@ -7,9 +7,8 @@
  * Loss-auditable by construction: every removed entry lands in the archive
  * in the same operation; plan() never mutates, apply() writes atomically.
  */
-import { writeFileSync, renameSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, renameSync, rmSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
-import { tmpdir } from 'node:os';
 import { serialize, serializeEntry } from './serialize.js';
 import { supersededIds } from './store.js';
 import { isExpired } from './lifecycle.js';
@@ -98,22 +97,38 @@ export function applyCompaction(store: Store, plan: CompactPlan): string[] {
   return written;
 }
 
-/** Atomic replacement: write temp in same directory, then rename (spec §11). */
+let atomicSeq = 0;
+
+/** Synchronous backoff — lets a transient Windows file lock clear before retry. */
+function sleepMs(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * Atomic replacement: write a temp in the SAME directory, then rename over the
+ * target (spec §11). Same-dir temp avoids cross-device rename (which EPERMs on
+ * Windows when the OS tmpdir is a different volume). The temp name is scoped by
+ * pid + sequence so concurrent writers never clobber each other's temp.
+ *
+ * On Windows, renameSync can transiently fail with EPERM/EBUSY/EACCES when an
+ * antivirus scanner or the search indexer briefly holds the source or target;
+ * retry with a short backoff before surfacing the error.
+ */
 export function writeFileAtomic(path: string, content: string): void {
   const dir = dirname(path);
-  const tmp = mkdtempSync(join(tmpdir(), 'mnemo-'));
-  const tmpFile = join(tmp, 'out');
-  try {
-    writeFileSync(tmpFile, content);
-    // rename across devices can fail; fall back to same-dir temp
+  const local = join(dir, `.${basename(path)}.${process.pid}.${atomicSeq++}.tmp`);
+  writeFileSync(local, content);
+  let lastErr: NodeJS.ErrnoException | null = null;
+  for (let attempt = 0; attempt < 10; attempt++) {
     try {
-      renameSync(tmpFile, path);
-    } catch {
-      const local = join(dir, `.${basename(path)}.tmp`);
-      writeFileSync(local, content);
       renameSync(local, path);
+      return;
+    } catch (e) {
+      lastErr = e as NodeJS.ErrnoException;
+      if (!['EPERM', 'EBUSY', 'EACCES'].includes(lastErr.code ?? '')) break;
+      sleepMs(20 * (attempt + 1)); // 20ms, 40ms, … ~200ms total
     }
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
   }
+  try { rmSync(local, { force: true }); } catch { /* best effort */ }
+  throw lastErr;
 }
