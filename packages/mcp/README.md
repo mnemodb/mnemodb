@@ -21,9 +21,17 @@ https://github.com/mnemodb/mnemodb
 
 ## Tools
 
+Eleven memory-semantic operations — things a plain memory *folder* can't do:
+
 - `memory_boot` — always-loaded context (preambles + pinned entries); call at session start
-- `memory_recall` — ranked retrieval of live entries for a query, with provenance + `untrusted` flag
+- `memory_list` — list the whole store (no query needed); browse everything
+- `memory_recall` — ranked retrieval for a query, with provenance + `untrusted` flag
+- `memory_show` — one entry in full: body, all metadata, lifecycle status
+- `memory_history` — an entry's supersession lineage (what it replaced / what replaced it)
+- `memory_stats` — the store's self-report: counts by type/scope/provenance, budget, staleness
 - `memory_remember` — store a typed entry (dedup, provenance stamping, supersession)
+- `memory_forget` — auditable soft-delete to the archive (recoverable; trust-gated)
+- `memory_pin` — set an entry's load tier (always/auto/cold); guards against pinning untrusted content
 - `memory_review` — stale entries, contradictions, budget status
 - `memory_compact` — the vacuum pass (dry-run by default)
 

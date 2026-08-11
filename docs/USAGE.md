@@ -67,7 +67,7 @@ npx @mnemodb/cli show <id>   # one entry in full
 npx @mnemodb/cli doctor      # health: stale, contradictions, budget, damage
 ```
 
-Or just open `.memory/project.mem.md` in your editor. If the "you can read your
+Or, from inside the agent, just ask: *"list my memories"* (it calls `memory_list`). Or open `.memory/project.mem.md` in your editor. If the "you can read your
 agent's memory" pitch is real, this is where you'll feel it — and if you never
 open it, that's useful feedback too.
 

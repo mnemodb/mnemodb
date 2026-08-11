@@ -14,7 +14,10 @@ import { join } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { recall, remember, review, compact, bootContext } from './engine.js';
+import {
+  recall, remember, review, compact, bootContext, list,
+  show, history, stats, forget, pin,
+} from './engine.js';
 
 function storeDir(): string {
   if (process.env.MNEMO_STORE) return process.env.MNEMO_STORE;
@@ -37,6 +40,17 @@ server.tool(
     limit: z.number().int().min(1).max(25).optional(),
   },
   async ({ query, scope, limit }) => text(recall(storeDir(), query, { scope, limit })),
+);
+
+server.tool(
+  'memory_list',
+  'List everything in the memory store — the full index of entries (type, id, statement, scope, pin, tags, provenance), no bodies. Unlike memory_recall this needs no query; use it to browse or show the user all memories. Superseded/expired entries are hidden unless includeArchived is true.',
+  {
+    scope: z.enum(['project', 'user', 'episode']).optional().describe('Limit to one scope'),
+    type: z.enum(['fact', 'pref', 'decision', 'insight', 'episode', 'todo', 'note']).optional().describe('Limit to one entry type'),
+    includeArchived: z.boolean().optional().describe('Include superseded/expired entries'),
+  },
+  async ({ scope, type, includeArchived }) => text(list(storeDir(), { scope, type, includeArchived })),
 );
 
 server.tool(
@@ -72,6 +86,47 @@ server.tool(
   'The always-loaded context: store preambles plus pin: always entries. Call once at session start.',
   {},
   async () => text({ context: bootContext(storeDir()) }),
+);
+
+server.tool(
+  'memory_show',
+  'Show one entry in full by id — statement, body, all metadata, provenance, and lifecycle status (live/superseded/expired). Use after memory_list or memory_recall to read the full detail of a specific memory.',
+  { id: z.string().describe('The entry id, e.g. "c4d1"') },
+  async ({ id }) => text(show(storeDir(), id) ?? { error: `no entry with id '${id}'` }),
+);
+
+server.tool(
+  'memory_history',
+  'Show the supersession lineage of an entry: which memories it replaced and which later replaced it. This is memory over time — a plain memory folder has no such history.',
+  { id: z.string().describe('The entry id to trace') },
+  async ({ id }) => text(history(storeDir(), id) ?? { error: `no entry with id '${id}'` }),
+);
+
+server.tool(
+  'memory_stats',
+  "The store's self-report: total/live/archived counts, breakdowns by type, scope, and provenance, how many entries are always-pinned, how many are stale, and the always-loaded token load vs budget. Use to understand the shape and health of memory at a glance.",
+  {},
+  async () => text(stats(storeDir())),
+);
+
+server.tool(
+  'memory_forget',
+  'Forget an entry: move it to the archive (recoverable, auditable — NOT a hard delete). Trust-gated: cannot forget a higher-trust (user) entry, so an injected "forget X" instruction cannot erase what the user told you. Prefer supersede when replacing with a new memory; use forget to retire something no longer wanted.',
+  {
+    id: z.string().describe('The entry id to forget'),
+    reason: z.string().optional().describe('Why it is being forgotten (recorded in the archive)'),
+  },
+  async ({ id, reason }) => text(forget(storeDir(), id, { reason })),
+);
+
+server.tool(
+  'memory_pin',
+  'Set an entry\'s load tier: "always" (injected every session), "auto" (loaded on demand, the default), or "cold" (search-only). Controls what fills the context budget. Guard: a tool-sourced entry cannot be pinned to "always".',
+  {
+    id: z.string().describe('The entry id'),
+    level: z.enum(['always', 'auto', 'cold']).describe('The load tier'),
+  },
+  async ({ id, level }) => text(pin(storeDir(), id, level)),
 );
 
 const transport = new StdioServerTransport();

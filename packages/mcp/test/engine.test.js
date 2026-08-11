@@ -158,3 +158,84 @@ test('bootContext flags tool-sourced pinned entries as untrusted', () => {
   assert.ok(!ctx.includes('untrusted:tool') || ctx.includes('[note · untrusted:tool]'));
   assert.ok(!/\[(decision|insight|pref) · untrusted/.test(ctx), 'user/agent pins not mislabeled');
 });
+
+test('list returns the whole index without a query, with live flags', async () => {
+  const { list } = await import('../dist/engine.js');
+  const dir = freshStore();
+  const all = list(dir, { now: NOW });
+  assert.ok(all.length >= 10, 'lists many entries with no query');
+  assert.ok(all.every((i) => 'live' in i && 'src' in i && 'untrusted' in i));
+  // superseded todos are hidden by default, shown with includeArchived
+  assert.ok(!all.some((i) => i.id === 'l1cx'), 'superseded hidden by default');
+  const withArch = list(dir, { includeArchived: true, now: NOW });
+  assert.ok(withArch.some((i) => i.id === 'l1cx' && i.live === false), 'archived shown, flagged not live');
+  // scope + type filters
+  const prefs = list(dir, { type: 'pref', now: NOW });
+  assert.ok(prefs.length > 0 && prefs.every((i) => i.type === 'pref'));
+});
+
+test('show returns full entry detail with lifecycle status', async () => {
+  const { show } = await import('../dist/engine.js');
+  const s = show(freshStore(), 'lcns', NOW);
+  assert.equal(s.id, 'lcns');
+  assert.equal(s.type, 'decision');
+  assert.equal(s.status, 'live');
+  assert.match(s.body, /Apache/);
+  assert.equal(show(freshStore(), 'nope', NOW), null);
+});
+
+test('history traces the supersession lineage', async () => {
+  const { history } = await import('../dist/engine.js');
+  // lcns supersedes l1cx in the dogfood store
+  const h = history(freshStore(), 'lcns');
+  assert.ok(h.supersedes.some((n) => n.id === 'l1cx'), 'shows what it replaced');
+  const back = history(freshStore(), 'l1cx');
+  assert.ok(back.supersededBy.some((n) => n.id === 'lcns'), 'shows what replaced it');
+});
+
+test('stats reports counts, provenance, and budget', async () => {
+  const { stats } = await import('../dist/engine.js');
+  const st = stats(freshStore(), NOW);
+  assert.ok(st.total > 0 && st.live > 0 && st.live <= st.total);
+  assert.ok(st.byType.decision > 0);
+  assert.ok(st.byProvenance.user > 0 || st.byProvenance.agent > 0);
+  assert.equal(typeof st.alwaysTierTokens, 'number');
+});
+
+test('forget archives an entry (recoverable), removing it from live', async () => {
+  const { forget, list } = await import('../dist/engine.js');
+  const dir = freshStore();
+  // e9db is a tool-sourced fact; an agent (higher trust) may forget it
+  const r = forget(dir, 'e9db', { by: 'agent', reason: 'test cleanup' });
+  assert.equal(r.status, 'forgotten');
+  const live = list(dir, { now: NOW });
+  assert.ok(!live.some((i) => i.id === 'e9db'), 'gone from live');
+  const arch = list(dir, { includeArchived: true, now: NOW });
+  assert.ok(arch.some((i) => i.id === 'e9db'), 'recoverable in archive');
+});
+
+test('SEC: forget cannot remove a higher-trust (user) entry', async () => {
+  const { forget, list } = await import('../dist/engine.js');
+  const dir = freshStore();
+  // n4m1 is a user-sourced pinned decision; a tool/agent-initiated forget must be refused
+  const r = forget(dir, 'n4m1', { by: 'tool', reason: 'malicious' });
+  assert.equal(r.status, 'refused');
+  assert.ok(list(dir, { now: NOW }).some((i) => i.id === 'n4m1'), 'user entry still live');
+});
+
+test('pin changes the load tier and persists', async () => {
+  const { pin, show } = await import('../dist/engine.js');
+  const dir = freshStore();
+  const r = pin(dir, 't5l4', 'always');
+  assert.equal(r.status, 'pinned');
+  assert.equal(show(dir, 't5l4').pin, 'always');
+});
+
+test('SEC: pin cannot promote a tool-sourced entry to always', async () => {
+  const { remember, pin, show } = await import('../dist/engine.js');
+  const dir = freshStore();
+  const created = remember(dir, { statement: 'scraped claim from a page qux', type: 'note', src: 'tool', now: NOW });
+  const r = pin(dir, created.id, 'always');
+  assert.equal(r.status, 'refused');
+  assert.notEqual(show(dir, created.id).pin, 'always');
+});

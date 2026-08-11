@@ -10,12 +10,12 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  loadStore, liveEntries, parse, serialize, appendEntry, generateId,
-  writeFileAtomic, doctor, planCompaction, applyCompaction,
-  isStale, estimateTokens, withStoreLock,
+  loadStore, liveEntries, deriveIndex, supersededIds, parse, serialize,
+  appendEntry, generateId, writeFileAtomic, doctor, planCompaction,
+  applyCompaction, isExpired, isStale, estimateTokens, withStoreLock,
   sanitizeStatement, trustRank, MAX_BODY,
 } from '@mnemodb/core';
-import type { Entry, LiveEntry, Store } from '@mnemodb/core';
+import type { Entry, LiveEntry, Store, MemDoc } from '@mnemodb/core';
 
 // ---------------------------------------------------------------- recall ----
 
@@ -117,6 +117,64 @@ function recencyFactor(entry: Entry, now: Date): number {
   if (Number.isNaN(d.getTime())) return 1;
   const ageDays = Math.max(0, (now.getTime() - d.getTime()) / 86_400_000);
   return 1 + 0.15 * Math.exp(-ageDays / 90); // mild freshness boost, decays over ~3 months
+}
+
+// ------------------------------------------------------------------ list ----
+
+export interface ListItem {
+  id: string | null;
+  type: string;
+  statement: string;
+  scope: string;
+  pin: string;
+  src: string;
+  tags: string[];
+  live: boolean;
+  untrusted: boolean;
+}
+
+/**
+ * Browse the whole store: the derived index (headings + metadata, no bodies),
+ * with a live flag. This is the in-agent equivalent of `mnemo list` — use it to
+ * see everything the store holds, not just what matches a query.
+ */
+export function list(
+  storeDir: string,
+  opts?: { scope?: string; type?: string; includeArchived?: boolean; now?: Date },
+): ListItem[] {
+  const store = loadStore(storeDir);
+  const now = opts?.now ?? new Date();
+  const dead = supersededIds(store);
+  const srcById = new Map<string, string>();
+  for (const doc of store.docs) {
+    for (const e of doc.entries) if (e.meta.id) srcById.set(e.meta.id, e.meta.src ?? 'agent');
+  }
+  const items: ListItem[] = [];
+  for (const doc of store.docs) {
+    const fileScope = doc.frontMatter?.scope ?? 'project';
+    for (const e of doc.entries) {
+      const scope = e.meta.scope ?? fileScope;
+      if (opts?.scope && scope !== opts.scope) continue;
+      if (opts?.type && e.type !== opts.type) continue;
+      const superseded = e.meta.id ? dead.has(e.meta.id) : false;
+      const expired = isExpired(e, now);
+      const live = !superseded && !expired;
+      if (!live && !opts?.includeArchived) continue;
+      const src = e.meta.src ?? 'agent';
+      items.push({
+        id: e.meta.id ?? null,
+        type: e.type,
+        statement: e.statement,
+        scope,
+        pin: e.meta.pin ?? 'auto',
+        src,
+        tags: e.meta.tags ?? [],
+        live,
+        untrusted: src.startsWith('tool'),
+      });
+    }
+  }
+  return items;
 }
 
 // -------------------------------------------------------------- remember ----
@@ -304,6 +362,216 @@ export function bootContext(storeDir: string, now: Date = new Date()): string {
     }
   }
   return parts.join('\n\n');
+}
+
+// ------------------------------------------------------------------ show ----
+
+export interface ShowResult {
+  id: string;
+  type: string;
+  statement: string;
+  body: string;
+  scope: string;
+  src: string;
+  untrusted: boolean;
+  conf?: string;
+  pin: string;
+  tags: string[];
+  updated?: string;
+  ttl?: string;
+  review?: string;
+  live: boolean;
+  status: 'live' | 'superseded' | 'expired';
+  file: string;
+  line: number;
+}
+
+function findEntry(store: Store, id: string): { entry: Entry; doc: MemDoc } | null {
+  for (const doc of store.docs) {
+    for (const entry of doc.entries) if (entry.meta.id === id) return { entry, doc };
+  }
+  return null;
+}
+
+/** Full detail for one entry, including body and lifecycle status. */
+export function show(storeDir: string, id: string, now: Date = new Date()): ShowResult | null {
+  const store = loadStore(storeDir);
+  const found = findEntry(store, id);
+  if (!found) return null;
+  const { entry, doc } = found;
+  const dead = supersededIds(store);
+  const superseded = entry.meta.id ? dead.has(entry.meta.id) : false;
+  const expired = isExpired(entry, now);
+  const src = entry.meta.src ?? 'agent';
+  return {
+    id, type: entry.type, statement: entry.statement, body: entry.body.trim(),
+    scope: entry.meta.scope ?? doc.frontMatter?.scope ?? 'project',
+    src, untrusted: src.startsWith('tool'),
+    conf: entry.meta.conf, pin: entry.meta.pin ?? 'auto', tags: entry.meta.tags ?? [],
+    updated: entry.meta.updated, ttl: entry.meta.ttl, review: entry.meta.review,
+    live: !superseded && !expired,
+    status: superseded ? 'superseded' : expired ? 'expired' : 'live',
+    file: doc.path ?? '', line: entry.line,
+  };
+}
+
+// --------------------------------------------------------------- history ----
+
+export interface HistoryNode { id: string | null; statement: string; src: string; updated?: string }
+export interface HistoryResult {
+  id: string;
+  /** Entries this one replaced (older → this), most recent first. */
+  supersedes: HistoryNode[];
+  /** Entries that replaced this one (this → newer). */
+  supersededBy: HistoryNode[];
+}
+
+/** The supersession lineage of an entry — what it replaced and what replaced it. */
+export function history(storeDir: string, id: string): HistoryResult | null {
+  const store = loadStore(storeDir);
+  const all = store.docs.flatMap((d) => d.entries);
+  const byId = new Map(all.filter((e) => e.meta.id).map((e) => [e.meta.id!, e]));
+  if (!byId.has(id)) return null;
+  const node = (e: Entry): HistoryNode => ({
+    id: e.meta.id ?? null, statement: e.statement, src: e.meta.src ?? 'agent', updated: e.meta.updated,
+  });
+  const supersedes: HistoryNode[] = [];
+  let cur = byId.get(id);
+  const seen = new Set<string>([id]);
+  while (cur && cur.meta.supersedes?.length) {
+    const prevId = cur.meta.supersedes[0];
+    if (seen.has(prevId)) break;
+    seen.add(prevId);
+    const prev = byId.get(prevId);
+    if (!prev) break;
+    supersedes.push(node(prev));
+    cur = prev;
+  }
+  const supersededBy = all
+    .filter((e) => (e.meta.supersedes ?? []).includes(id))
+    .map(node);
+  return { id, supersedes, supersededBy };
+}
+
+// ----------------------------------------------------------------- stats ----
+
+export interface StatsResult {
+  total: number;
+  live: number;
+  archived: number;
+  byType: Record<string, number>;
+  byScope: Record<string, number>;
+  byProvenance: Record<string, number>;
+  pinnedAlways: number;
+  stale: number;
+  alwaysTierTokens: number;
+  budget: number | null;
+}
+
+/** A self-report of the store: counts, provenance mix, budget load, staleness. */
+export function stats(storeDir: string, now: Date = new Date()): StatsResult {
+  const store = loadStore(storeDir);
+  const dead = supersededIds(store);
+  const rep = doctor(store, now);
+  const byType: Record<string, number> = {};
+  const byScope: Record<string, number> = {};
+  const byProvenance: Record<string, number> = {};
+  let total = 0, live = 0, pinnedAlways = 0, stale = 0;
+  for (const doc of store.docs) {
+    const fileScope = doc.frontMatter?.scope ?? 'project';
+    for (const e of doc.entries) {
+      total++;
+      const isLive = !(e.meta.id && dead.has(e.meta.id)) && !isExpired(e, now);
+      if (isLive) live++;
+      byType[e.type] = (byType[e.type] ?? 0) + 1;
+      const scope = e.meta.scope ?? fileScope;
+      byScope[scope] = (byScope[scope] ?? 0) + 1;
+      const src = (e.meta.src ?? 'agent').split('/')[0];
+      byProvenance[src] = (byProvenance[src] ?? 0) + 1;
+      if (isLive && e.meta.pin === 'always') pinnedAlways++;
+      if (isLive && isStale(e, now)) stale++;
+    }
+  }
+  return {
+    total, live, archived: total - live, byType, byScope, byProvenance,
+    pinnedAlways, stale, alwaysTierTokens: rep.stats.alwaysTierTokens, budget: rep.stats.budget,
+  };
+}
+
+// ---------------------------------------------------------------- forget ----
+
+export interface ForgetResult {
+  status: 'forgotten' | 'not-found' | 'refused';
+  id: string;
+  reason?: string;
+}
+
+/**
+ * Auditable soft-delete: move an entry to the archive (recoverable), rather than
+ * hard-deleting. Trust-gated (spec §10): an agent/tool-initiated forget may not
+ * remove a higher-trust (user) entry — so an injected "forget the security note"
+ * instruction cannot erase what you told the agent.
+ */
+export function forget(
+  storeDir: string, id: string, opts?: { by?: string; reason?: string; now?: Date },
+): ForgetResult {
+  const by = opts?.by ?? 'agent';
+  const now = opts?.now ?? new Date();
+  const probeRoot = loadStore(storeDir).root;
+  return withStoreLock(probeRoot, (): ForgetResult => {
+    const store = loadStore(storeDir);
+    const found = findEntry(store, id);
+    if (!found) return { status: 'not-found', id };
+    // Trust gate (spec §10): a lower-trust caller cannot forget a user entry —
+    // so an injected "forget the security note" cannot erase what the user said.
+    if (trustRank(by) < trustRank(found.entry.meta.src)) {
+      return { status: 'refused', id, reason: 'cannot forget a higher-trust entry' };
+    }
+    // Forget = supersede with a cold tombstone (MnemoDB never hard-deletes).
+    // The target becomes superseded → not live → hidden, but fully recoverable.
+    const tombstone: Entry = {
+      type: 'note',
+      statement: `forgotten: ${found.entry.statement}`.slice(0, 200),
+      meta: {
+        id: generateId(new Set(store.docs.flatMap((d) => d.entries).map((e) => e.meta.id!).filter(Boolean))),
+        src: by, pin: 'cold', supersedes: [id], tags: ['forgotten'],
+        updated: now.toISOString().slice(0, 10),
+      },
+      body: opts?.reason ? `Reason: ${opts.reason}\n` : '',
+      raw: '', line: 0,
+    };
+    appendEntry(found.doc, tombstone);
+    if (found.doc.path) writeFileAtomic(join(store.root, found.doc.path), serialize(found.doc));
+    return { status: 'forgotten', id, reason: opts?.reason };
+  });
+}
+
+// ------------------------------------------------------------------ pin ------
+
+export interface PinResult { status: 'pinned' | 'not-found' | 'refused'; id: string; pin?: string; reason?: string }
+
+/**
+ * Set an entry's load tier: always (session-start), auto (on-demand), cold
+ * (search-only). Controls context budget — something a flat folder can't do.
+ * Guard: a tool-sourced entry may NOT be pinned to `always` (that would inject
+ * untrusted content into every session).
+ */
+export function pin(
+  storeDir: string, id: string, level: 'always' | 'auto' | 'cold',
+): PinResult {
+  const probeRoot = loadStore(storeDir).root;
+  return withStoreLock(probeRoot, (): PinResult => {
+    const store = loadStore(storeDir);
+    const found = findEntry(store, id);
+    if (!found) return { status: 'not-found', id };
+    if (level === 'always' && (found.entry.meta.src ?? 'agent').startsWith('tool')) {
+      return { status: 'refused', id, reason: 'cannot pin a tool-sourced entry to always' };
+    }
+    found.entry.meta.pin = level;
+    found.entry.dirty = true;
+    if (found.doc.path) writeFileAtomic(join(store.root, found.doc.path), serialize(found.doc));
+    return { status: 'pinned', id, pin: level };
+  });
 }
 
 export { estimateTokens };

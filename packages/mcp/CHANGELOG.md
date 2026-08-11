@@ -6,6 +6,35 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.5] — 2026-08-11
+
+The memory-semantic tool surface — the answer to "why this over a plain memory
+folder." Five new MCP tools that operate on structure a generic file-ops memory
+tool has no concept of.
+
+### Added
+- `memory_show` — one entry in full (body, metadata, provenance, lifecycle status).
+- `memory_history` — an entry's supersession lineage: what it replaced and what
+  replaced it. Memory over time; a folder has no history.
+- `memory_stats` — the store's self-report: counts by type/scope/provenance,
+  always-pinned count, staleness, and always-tier token load vs budget.
+- `memory_forget` — auditable soft-delete: supersede with a cold tombstone
+  (recoverable, never a hard delete). Trust-gated — cannot forget a higher-trust
+  (user) entry, so an injected "forget X" can't erase what the user told you.
+- `memory_pin` — set an entry's load tier (always/auto/cold) to control the
+  context budget. Guard: a tool-sourced entry cannot be pinned to `always`.
+
+The MCP server now exposes 11 tools. 54 tests, including trust-guard regressions
+for forget and pin.
+
+## [0.1.4] — 2026-08-11
+
+### Added
+- `memory_list` MCP tool — list the entire store from inside the agent (no query
+  needed), the in-agent equivalent of `mnemo list`. Filters by scope/type and can
+  include archived (superseded/expired) entries. You can now ask an agent "list
+  my memories" instead of shelling out to the CLI.
+
 ## [0.1.3] — 2026-08-11
 
 Documentation-only release. No code changes.
@@ -89,6 +118,8 @@ audit. Left published for history; not recommended for use.
   `memory_remember`, `memory_review`, `memory_compact`, `memory_boot`.
 - Conformance fixtures, including the project's own dogfood memory store.
 
+[0.1.5]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.5
+[0.1.4]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.4
 [0.1.3]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.3
 [0.1.2]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.2
 [0.1.1]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.1
