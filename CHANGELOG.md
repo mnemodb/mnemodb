@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.7] — 2026-08-12
+
+### Fixed
+- `writeFileAtomic` is now robust on Windows: it writes the temp file in the
+  target's own directory (no cross-device rename), scopes the temp name by
+  pid + sequence so concurrent writers can't collide, and retries `renameSync`
+  on transient `EPERM`/`EBUSY`/`EACCES` (antivirus/indexer file locks). This
+  fixes intermittent `EPERM` failures under concurrent writes — and the flaky
+  `prepublishOnly` test run that could abort `npm publish`.
+
+### Housekeeping
+- Removed an accidentally-committed delivery tarball; `.gitignore` now excludes
+  `*.tar`.
+
 ## [0.1.6] — 2026-08-12
 
 Ship the Claude Code plugin for real, make writes land where you look for them,
