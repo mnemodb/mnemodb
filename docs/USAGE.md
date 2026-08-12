@@ -38,7 +38,19 @@ it, then keep whichever store you want as canonical.
 
 ## 2. Make the agent use it
 
-Install the MCP server (once):
+**Easiest - the Claude Code plugin.** It bundles the MCP server, a skill that
+teaches the agent *when* to recall and remember, and a session-start hook, so
+memory works with no config to paste:
+
+```
+/plugin marketplace add mnemodb/mnemodb
+/plugin install mnemodb@mnemodb
+```
+
+Restart Claude Code and you're set - skip to step 3.
+
+**Manual - just the MCP server** (you add the usage instruction yourself). Install
+the server (once):
 
 ```
 claude mcp add mnemodb -- npx -y @mnemodb/mcp

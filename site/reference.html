@@ -128,6 +128,11 @@
   ];
   var DEFAULT = "usage";
 
+  function externalize(root){
+    (root || document).querySelectorAll('a[href^="http"]').forEach(function(a){
+      a.target = "_blank"; a.rel = "noopener noreferrer";
+    });
+  }
   function param(){ try { return new URLSearchParams(location.search).get("doc"); } catch(e){ return null; } }
   function docById(id){ for (var i=0;i<DOCS.length;i++) if (DOCS[i].id===id) return DOCS[i]; return null; }
 
@@ -161,6 +166,7 @@
         md = md.replace(/—/g, "-");   // em-dashes -> hyphens (site style; source docs untouched)
         marked.setOptions({ gfm:true, breaks:false, headerIds:true, mangle:false });
         prose.innerHTML = marked.parse(md);
+        externalize(prose);
         window.scrollTo(0,0);
       })
       .catch(function(err){
@@ -170,6 +176,7 @@
   }
 
   window.addEventListener("popstate", function(){ load(param() || DEFAULT, false); });
+  externalize();                    // nav links (GitHub, npm) open in new tabs
   load(param() || DEFAULT, false);
 </script>
 </body>
