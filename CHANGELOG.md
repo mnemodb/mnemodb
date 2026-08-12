@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.8] — 2026-08-12
+
+Re-release of the 0.1.7 Windows fix. The published 0.1.7 packages were built
+before the `writeFileAtomic` change landed, so the hardening described under
+0.1.7 never actually reached npm. 0.1.8 ships it for real — verified present in
+the published `dist/compact.js`. No other changes.
+
 ## [0.1.7] — 2026-08-12
 
 ### Fixed
