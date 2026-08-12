@@ -6,12 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.9] — 2026-08-12
+
+The Windows atomic-write fix finally reaches npm. 0.1.6–0.1.8 all shipped a
+**stale `dist`**: `tsc -b` (incremental) reused cached compiled output and never
+recompiled `compact.js`, so the source fix never made it into the published
+tarball. The `build` script now runs `tsc -b --force`, guaranteeing a clean
+compile before every publish. No source changes vs 0.1.8 — this is the same fix,
+actually compiled in.
+
 ## [0.1.8] — 2026-08-12
 
-Re-release of the 0.1.7 Windows fix. The published 0.1.7 packages were built
-before the `writeFileAtomic` change landed, so the hardening described under
-0.1.7 never actually reached npm. 0.1.8 ships it for real — verified present in
-the published `dist/compact.js`. No other changes.
+Intended to ship the 0.1.7 Windows fix; the published `dist` was stale (see
+0.1.9). Superseded by 0.1.9.
 
 ## [0.1.7] — 2026-08-12
 
