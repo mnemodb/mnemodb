@@ -25,7 +25,8 @@ export interface CompactMove {
 
 export interface CompactPlan {
   moves: CompactMove[];
-  /** Documents in their post-compaction form (archive last). Untouched docs excluded. */
+  /** Documents in their post-compaction form. Untouched docs excluded;
+   *  applyCompaction writes the archive before the source removals. */
   changed: MemDoc[];
 }
 
@@ -85,10 +86,21 @@ export function planCompaction(store: Store, now: Date = new Date()): CompactPla
   return { moves, changed: [...changed] };
 }
 
-/** Apply a plan: atomic write (temp file + rename) per changed document (spec §11). */
+/**
+ * Apply a plan: atomic write (temp file + rename) per changed document (spec §11).
+ *
+ * Writes are per-file atomic but there is no cross-file transaction, so the
+ * ARCHIVE is written FIRST and the source removals after. If a later write
+ * throws (disk full, FS error), an interrupted run leaves the moved entries in
+ * BOTH the archive and their source — recoverable duplicates that `doctor`
+ * flags as duplicate-id — rather than lost from both (audit H3).
+ */
 export function applyCompaction(store: Store, plan: CompactPlan): string[] {
   const written: string[] = [];
-  for (const doc of plan.changed) {
+  const ordered = [...plan.changed].sort(
+    (a, b) => (isArchive(b) ? 1 : 0) - (isArchive(a) ? 1 : 0),
+  );
+  for (const doc of ordered) {
     if (!doc.path) continue;
     const abs = join(store.root, doc.path);
     writeFileAtomic(abs, serialize(doc));

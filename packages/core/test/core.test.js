@@ -170,6 +170,19 @@ test('appendEntry produces parseable, gap-separated output', () => {
   assert.equal(reparsed.entries[1].type, 'insight');
 });
 
+test('applyCompaction writes the archive before source removals (audit H3)', async () => {
+  const { mkdtempSync, cpSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { planCompaction, applyCompaction } = await import('../dist/index.js');
+  const tmp = mkdtempSync(join(tmpdir(), 'h3-'));
+  cpSync(DOGFOOD, tmp, { recursive: true });
+  const store = loadStore(tmp);
+  const plan = planCompaction(store, new Date('2026-08-10'));
+  const written = applyCompaction(store, plan);
+  assert.ok(written.length >= 2, 'archive and at least one source file are written');
+  assert.match(written[0], /archive\.mem\.md$/, 'archive written first so an interrupted run cannot lose entries');
+});
+
 test('untyped markdown file (CLAUDE.md) is a valid all-preamble document', () => {
   const src = '# My instructions\n\nAlways run tests.\n\nUse pnpm.\n';
   const doc = parse(src);
