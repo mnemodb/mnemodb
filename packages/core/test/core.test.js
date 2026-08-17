@@ -122,6 +122,32 @@ test('merge: union by id, revision race by updated, anonymous dedupe', () => {
   assert.match(shared.statement, /REVISED/, 'later updated wins');
 });
 
+test('merge does not glue entries when a side lacks a trailing newline (audit C1)', () => {
+  const ours = parse('## fact: a\n`mnemo aaaa | updated: 2026-08-01`');   // no final newline
+  const theirs = parse('## fact: b\n`mnemo bbbb | updated: 2026-08-02`\n');
+  const re = parse(serialize(mergeDocs(ours, theirs)));
+  assert.deepEqual(re.entries.map((e) => e.meta.id).sort(), ['aaaa', 'bbbb'], 'both entries survive');
+});
+
+test('merge: higher trust wins even when the lower-trust side is newer (audit H4)', () => {
+  const user = parse('## pref: no deploys on friday\n`mnemo xx01 | src: user | updated: 2026-08-01`\n');
+  const tool = parse('## pref: deploy anytime\n`mnemo xx01 | src: tool | updated: 2030-01-01`\n');
+  assert.match(mergeDocs(user, tool).entries.find((e) => e.meta.id === 'xx01').statement, /no deploys/, 'user not overridden');
+  assert.match(mergeDocs(tool, user).entries.find((e) => e.meta.id === 'xx01').statement, /no deploys/, 'order-independent');
+});
+
+test('merge surfaces preamble divergence instead of silently dropping it (audit H4)', () => {
+  const a = parse('# Notes\nAlways run tests.\n\n## fact: x\n`mnemo aa01`\n');
+  const b = parse('# Notes\nUse pnpm and lint first.\n\n## fact: x\n`mnemo aa01`\n');
+  assert.ok(mergeDocs(a, b).diagnostics.some((d) => d.rule === 'preamble-diverged'), 'divergence flagged');
+});
+
+test('merge output is byte-identical regardless of argument order (audit M5)', () => {
+  const a = parse('## fact: A\n`mnemo aaa1 | updated: 2026-08-01`\n\n## fact: C\n`mnemo ccc1`\n');
+  const b = parse('## fact: B\n`mnemo bbb1 | updated: 2026-08-02`\n');
+  assert.equal(serialize(mergeDocs(a, b)), serialize(mergeDocs(b, a)), 'converges byte-for-byte');
+});
+
 test('merge is commutative and idempotent on entry sets', () => {
   const a = parse('## fact: A\n`mnemo aaa1 | updated: 2026-08-01`\n');
   const b = parse('## fact: B\n`mnemo bbb1 | updated: 2026-08-02`\n');
@@ -142,6 +168,70 @@ test('appendEntry produces parseable, gap-separated output', () => {
   const reparsed = parse(out);
   assert.equal(reparsed.entries.length, 2);
   assert.equal(reparsed.entries[1].type, 'insight');
+});
+
+test('applyCompaction writes the archive before source removals (audit H3)', async () => {
+  const { mkdtempSync, cpSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { planCompaction, applyCompaction } = await import('../dist/index.js');
+  const tmp = mkdtempSync(join(tmpdir(), 'h3-'));
+  cpSync(DOGFOOD, tmp, { recursive: true });
+  const store = loadStore(tmp);
+  const plan = planCompaction(store, new Date('2026-08-10'));
+  const written = applyCompaction(store, plan);
+  assert.ok(written.length >= 2, 'archive and at least one source file are written');
+  assert.match(written[0], /archive\.mem\.md$/, 'archive written first so an interrupted run cannot lose entries');
+});
+
+test('withStoreLock fails fast on an unusable lock path instead of spinning (audit M1)', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { withStoreLock } = await import('../dist/index.js');
+  const base = mkdtempSync(join(tmpdir(), 'lockm1-'));
+  const filePath = join(base, 'afile');
+  writeFileSync(filePath, 'x');
+  // storeRoot under a regular file → lockDir mkdir gets ENOTDIR → must throw fast.
+  assert.throws(() => withStoreLock(join(filePath, 'sub'), () => 42, { timeoutMs: 500 }),
+    /Cannot create store lock|ENOTDIR/);
+});
+
+test('withStoreLock does not break a lock held by a live process (audit M2)', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, utimesSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { withStoreLock } = await import('../dist/index.js');
+  const root = mkdtempSync(join(tmpdir(), 'lockm2a-'));
+  const lockDir = join(root, '.mnemo-lock');
+  mkdirSync(lockDir);
+  writeFileSync(join(lockDir, 'pid'), String(process.pid)); // held by us — a live pid
+  const old = new Date(Date.now() - 60_000);
+  utimesSync(lockDir, old, old);                            // looks stale by mtime
+  assert.throws(() => withStoreLock(root, () => 1, { timeoutMs: 300 }), /Timed out/,
+    'a live holder is never broken even when the lock looks stale');
+});
+
+test('withStoreLock breaks a lock whose holder pid is dead (audit M2)', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, utimesSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { withStoreLock } = await import('../dist/index.js');
+  const root = mkdtempSync(join(tmpdir(), 'lockm2b-'));
+  const lockDir = join(root, '.mnemo-lock');
+  mkdirSync(lockDir);
+  writeFileSync(join(lockDir, 'pid'), '2147483646');       // a pid that is not alive
+  const old = new Date(Date.now() - 60_000);
+  utimesSync(lockDir, old, old);
+  assert.equal(withStoreLock(root, () => 7, { timeoutMs: 1000 }), 7, 'dead-holder lock is broken and acquired');
+});
+
+test('trustRank/isUntrusted canonicalize src and fail closed for unknown (audit H2)', async () => {
+  const { trustRank, isUntrusted } = await import('../dist/index.js');
+  for (const s of ['tool', 'Tool', 'TOOL', 'tool ', 'tool\t', 'tool/web']) {
+    assert.equal(trustRank(s), 1, `${JSON.stringify(s)} ranks as tool`);
+    assert.equal(isUntrusted(s), true, `${JSON.stringify(s)} is untrusted`);
+  }
+  assert.equal(trustRank('User'), 3, 'User canonicalizes to user');
+  assert.equal(trustRank('AGENT'), 2, 'AGENT canonicalizes to agent');
+  assert.equal(trustRank('mystery'), 1, 'unknown src fails closed to tool tier');
+  assert.equal(isUntrusted('mystery'), true, 'unknown src is untrusted');
 });
 
 test('untyped markdown file (CLAUDE.md) is a valid all-preamble document', () => {
@@ -282,6 +372,13 @@ test('CRLF documents (Windows checkouts) parse with correct types and stay byte-
   assert.equal(serialize(doc), src, 'CRLF bytes preserved exactly on round-trip');
 });
 
+test('parse flags an unclosed code fence; a balanced fence does not (audit H1)', () => {
+  const open = parse('## note: x\n`mnemo aa01`\n```\nunclosed\n');
+  assert.ok(open.diagnostics.some((d) => d.rule === 'unclosed-fence'), 'open fence flagged');
+  const closed = parse('## note: x\n`mnemo aa01`\n```\nclosed\n```\n');
+  assert.ok(!closed.diagnostics.some((d) => d.rule === 'unclosed-fence'), 'balanced fence not flagged');
+});
+
 test('fenced code blocks containing ## lines are not split into entries', () => {
   const src = '## fact: build script structure\n`mnemo cb01 | src: agent`\n\n' +
     'The script:\n\n```markdown\n## fact: EXAMPLE inside a fence\n`mnemo fake1`\n```\n\nEnd.\n' +
@@ -308,4 +405,27 @@ test('store lock: held lock blocks, stale lock is broken', async () => {
   const old = new Date(Date.now() - 60_000);
   utimesSync(join(root, '.mnemo-lock'), old, old);
   assert.equal(withStoreLock(root, () => 'stolen', { timeoutMs: 2000 }), 'stolen');
+});
+
+test('planCompaction does not mutate the input store; planning twice is stable (audit M1-core)', async () => {
+  const { mkdtempSync, cpSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { planCompaction } = await import('../dist/index.js');
+  const tmp = mkdtempSync(join(tmpdir(), 'purity-'));
+  cpSync(DOGFOOD, tmp, { recursive: true });
+  const store = loadStore(tmp);
+  const before = store.docs.map((d) => d.entries.length);
+  const p1 = planCompaction(store, new Date('2026-08-10'));
+  assert.deepEqual(store.docs.map((d) => d.entries.length), before, 'planning must not mutate the store');
+  const p2 = planCompaction(store, new Date('2026-08-10'));
+  assert.deepEqual(
+    p2.moves.map((m) => m.id).sort(), p1.moves.map((m) => m.id).sort(),
+    'planning twice yields the same moves',
+  );
+});
+
+test('doctor flags a ttl with no date anchor (audit LOW)', () => {
+  const doc = parse('## fact: x\n`mnemo aa01 | ttl: 30d`\n'); // ttl but no updated / no date in src
+  const store = { root: '.', docs: [doc] };
+  assert.ok(doctor(store).diagnostics.some((d) => d.rule === 'ttl-no-anchor'), 'ttl-without-anchor flagged');
 });

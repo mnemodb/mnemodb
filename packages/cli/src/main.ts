@@ -60,9 +60,11 @@ function cmdList(dir: string): number {
     console.log('No entries found.');
     return 0;
   }
-  const live = new Set(liveEntries(store).map((l) => l.entry));
+  // Key liveness by file:line, not id — id-less entries have id null and would
+  // otherwise always compare unequal and mis-render as superseded (audit LOW).
+  const liveKey = new Set(liveEntries(store).map((l) => `${l.doc.path ?? ''}:${l.entry.line}`));
   for (const e of index) {
-    const liveMark = [...live].some((x) => x.meta.id === e.id) ? ' ' : 'x';
+    const liveMark = liveKey.has(`${e.file}:${e.line}`) ? ' ' : 'x';
     console.log(
       `${liveMark} [${e.type.padEnd(8)}] ${(e.id ?? '----').padEnd(8)} ` +
       `${e.pin === 'always' ? '📌' : e.pin === 'cold' ? '❄' : ' '} ${e.statement}`,
@@ -151,18 +153,21 @@ function cmdMigrate(source: string): number {
   const intoIdx = args.indexOf('--into');
   const target = intoIdx >= 0 ? args[intoIdx + 1] : 'imported.mem.md';
   const claudeMem = flags.has('--claude-memory');
+  // Load the target first so imported ids can be seeded against existing ones
+  // (no collisions), and reuse the same doc for the append.
+  const doc = existsSync(target)
+    ? parse(readFileSync(target, 'utf8'), target)
+    : parse(`---\nmnemo: "0.1"\nscope: project\ntitle: "imported from ${source}"\nupdated: ${today()}\n---\n`, target);
+  const existingIds = doc.entries.map((e) => e.meta.id).filter((x) => x != null);
   const entries = claudeMem
-    ? importClaudeMemoryDir(source, { type: typeFlag })
-    : importNumberedDir(source, { type: typeFlag ?? 'decision' });
+    ? importClaudeMemoryDir(source, { type: typeFlag, existingIds })
+    : importNumberedDir(source, { type: typeFlag ?? 'decision', existingIds });
   if (entries.length === 0) {
     console.error(claudeMem
       ? `No .md files found in ${source}.`
       : `No numbered records (NNNN-slug.md) found in ${source} (use --claude-memory for a Claude Code memory dir).`);
     return 1;
   }
-  const doc = existsSync(target)
-    ? parse(readFileSync(target, 'utf8'), target)
-    : parse(`---\nmnemo: "0.1"\nscope: project\ntitle: "imported from ${source}"\nupdated: ${today()}\n---\n`, target);
   for (const e of entries) appendEntry(doc, e);
   writeFileAtomic(target, serialize(doc));
   console.log(`Imported ${entries.length} records from ${source} into ${target} (type: ${typeFlag ?? 'decision'}).`);
@@ -187,12 +192,19 @@ commands:
   return 0;
 }
 
-const exit =
-  command === 'init' ? cmdInit(target) :
-  command === 'list' ? cmdList(target) :
-  command === 'show' ? cmdShow(args[1] ? args[0] : '.', args[1] ?? args[0]) :
-  command === 'doctor' ? cmdDoctor(target) :
-  command === 'compact' ? cmdCompact(target) :
-  command === 'migrate' ? cmdMigrate(target) :
-  help();
+let exit: number;
+try {
+  exit =
+    command === 'init' ? cmdInit(target) :
+    command === 'list' ? cmdList(target) :
+    command === 'show' ? cmdShow(args[1] ? args[0] : '.', args[1] ?? args[0]) :
+    command === 'doctor' ? cmdDoctor(target) :
+    command === 'compact' ? cmdCompact(target) :
+    command === 'migrate' ? cmdMigrate(target) :
+    help();
+} catch (e) {
+  // Friendly one-line error instead of a raw stack trace (audit LOW).
+  console.error(`mnemo ${command}: ${(e as Error).message}`);
+  exit = 1;
+}
 process.exit(exit);

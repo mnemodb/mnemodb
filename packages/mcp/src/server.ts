@@ -9,6 +9,7 @@
  * stamped src: agent — the engine never records user provenance for content
  * the user did not write themselves.
  */
+import { createRequire } from 'node:module';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -17,20 +18,23 @@ import {
   show, history, stats, forget, pin,
 } from './engine.js';
 
+// Single-source the advertised version from package.json so it never drifts.
+const { version } = createRequire(import.meta.url)('../package.json') as { version: string };
+
 // Resolve the store's base directory. Prefer MNEMO_STORE (the Claude Code
 // plugin sets it to ${CLAUDE_PROJECT_DIR} so writes always land in the
 // project's store, never wherever npx happened to launch us). Fall back to the
 // working directory only when it is unset. `loadStore` handles the .memory/ vs
 // single-file layout underneath whichever base we return.
 function storeDir(): string {
-  return process.env.MNEMO_STORE ?? process.cwd();
+  return process.env.MNEMO_STORE || process.cwd();
 }
 
 const text = (data: unknown) => ({
   content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
 });
 
-const server = new McpServer({ name: 'mnemodb', version: '0.1.0' });
+const server = new McpServer({ name: 'mnemodb', version });
 
 server.tool(
   'memory_recall',

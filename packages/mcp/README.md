@@ -5,7 +5,7 @@ Cursor, Windsurf, Claude Desktop — persistent memory stored in human-readable,
 git-diffable `.mem.md` files.
 
 ```
-claude mcp add mnemodb -- npx -y @mnemodb/mcp
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.9
 ```
 
 ## Why this and not built-in memory
@@ -38,7 +38,7 @@ Eleven memory-semantic operations — things a plain memory *folder* can't do:
 ## Setup — Claude Code
 
 ```bash
-claude mcp add mnemodb -- npx -y @mnemodb/mcp
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.9
 ```
 
 Or in `.mcp.json` at your project root:
@@ -46,7 +46,7 @@ Or in `.mcp.json` at your project root:
 ```json
 {
   "mcpServers": {
-    "mnemodb": { "command": "npx", "args": ["-y", "@mnemodb/mcp"] }
+    "mnemodb": { "command": "npx", "args": ["-y", "@mnemodb/mcp@0.1.9"] }
   }
 }
 ```

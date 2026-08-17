@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, cpSync, readFileSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { recall, remember, review, compact, bootContext } from '../dist/engine.js';
+import { recall, remember, review, compact, bootContext, history } from '../dist/engine.js';
 
 const DOGFOOD = fileURLToPath(new URL('../../../fixtures/dogfood', import.meta.url));
 const NOW = new Date('2026-08-10T12:00:00Z');
@@ -238,4 +238,33 @@ test('SEC: pin cannot promote a tool-sourced entry to always', async () => {
   const r = pin(dir, created.id, 'always');
   assert.equal(r.status, 'refused');
   assert.notEqual(show(dir, created.id).pin, 'always');
+});
+
+test('history walks all superseded predecessors, not just the first (audit LOW)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'hist-'));
+  mkdirSync(join(dir, '.memory'), { recursive: true });
+  writeFileSync(join(dir, '.memory', 'project.mem.md'),
+    '---\nmnemo: "0.1"\nscope: project\n---\n\n' +
+    '## fact: old A\n`mnemo aaa1 | src: agent`\n\n' +
+    '## fact: old B\n`mnemo bbb1 | src: agent`\n\n' +
+    '## fact: merged C\n`mnemo ccc1 | src: agent | supersedes: aaa1, bbb1`\n');
+  const h = history(dir, 'ccc1');
+  assert.deepEqual(h.supersedes.map((n) => n.id).sort(), ['aaa1', 'bbb1'], 'both predecessors present');
+});
+
+test('remember duplicate reports the file the existing entry lives in (audit LOW)', () => {
+  const dir = freshStore();
+  const r = remember(dir, { statement: 'Xylophone calibration uses a 440Hz reference tone', type: 'note', now: NOW });
+  assert.equal(r.status, 'created');
+  const d = remember(dir, { statement: 'Xylophone calibration uses a 440Hz reference tone', type: 'note', now: NOW });
+  assert.equal(d.status, 'duplicate');
+  assert.equal(d.file, 'project.mem.md', 'duplicate reports the real file, not an empty string');
+});
+
+test('CJK memories are searchable via word segmentation (audit M7)', () => {
+  const dir = freshStore();
+  remember(dir, { statement: '选择 PostgreSQL 数据库方案而不是 Redis 缓存', type: 'decision', now: NOW });
+  remember(dir, { statement: 'データベースを選択する理由と背景', type: 'note', now: NOW });
+  assert.ok(recall(dir, '数据库', { now: NOW }).length >= 1, 'Chinese query finds the Chinese memory');
+  assert.ok(recall(dir, 'データベース', { now: NOW }).length >= 1, 'Japanese query finds the Japanese memory');
 });

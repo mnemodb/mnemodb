@@ -4,7 +4,7 @@
  * markers, expired/stale entries, always-tier budget overruns, invalid ttl.
  */
 import { REGISTERED_TYPES } from './types.js';
-import { ttlDays, isExpired, isStale } from './lifecycle.js';
+import { ttlDays, isExpired, isStale, hasAnchor } from './lifecycle.js';
 import { alwaysTier, supersededIds, forgedSupersedes } from './store.js';
 import type { Store } from './store.js';
 import type { Diagnostic } from './types.js';
@@ -64,6 +64,9 @@ export function doctor(store: Store, now: Date = new Date()): DoctorReport {
       if (!REGISTERED.has(e.type)) at(e.line, 'warn', 'unknown-type', `unknown entry type '${e.type}' (preserved)`);
       if (e.meta.ttl && e.meta.ttl !== 'none' && ttlDays(e.meta.ttl, e.type) === null) {
         at(e.line, 'warn', 'invalid-ttl', `invalid ttl '${e.meta.ttl}'`);
+      }
+      if (e.meta.ttl && e.meta.ttl !== 'none' && ttlDays(e.meta.ttl, e.type) !== null && !hasAnchor(e)) {
+        at(e.line, 'warn', 'ttl-no-anchor', `entry ${e.meta.id ?? ''} has a ttl but no date anchor (updated/src) — it will never expire`);
       }
       if (isExpired(e, now)) { expired++; at(e.line, 'warn', 'expired', `entry ${e.meta.id ?? ''} past ttl — compaction will archive it`); }
       else if (isStale(e, now)) { stale++; at(e.line, 'warn', 'stale', `entry ${e.meta.id ?? ''} past review date — re-verify before relying on it`); }
@@ -127,7 +130,17 @@ export function doctor(store: Store, now: Date = new Date()): DoctorReport {
     });
   }
 
-  const live = entries - expired - dead.size;
+  // Count live precisely (neither superseded nor expired). The old
+  // `entries - expired - dead.size` double-subtracted entries that were both,
+  // and counted orphan superseded ids that have no entry (audit L4).
+  let live = 0;
+  for (const doc of store.docs) {
+    for (const e of doc.entries) {
+      if (e.meta.id && dead.has(e.meta.id)) continue;
+      if (isExpired(e, now)) continue;
+      live++;
+    }
+  }
   return {
     diagnostics,
     stats: {

@@ -177,6 +177,10 @@ audit. Left published for history; not recommended for use.
   `memory_remember`, `memory_review`, `memory_compact`, `memory_boot`.
 - Conformance fixtures, including the project's own dogfood memory store.
 
+[0.1.9]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.9
+[0.1.8]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.8
+[0.1.7]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.7
+[0.1.6]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.6
 [0.1.5]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.5
 [0.1.4]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.4
 [0.1.3]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.3

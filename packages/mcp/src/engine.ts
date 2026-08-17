@@ -13,7 +13,7 @@ import {
   loadStore, liveEntries, deriveIndex, supersededIds, parse, serialize,
   appendEntry, generateId, writeFileAtomic, doctor, planCompaction,
   applyCompaction, isExpired, isStale, estimateTokens, withStoreLock,
-  sanitizeStatement, trustRank, MAX_BODY,
+  sanitizeStatement, trustRank, isUntrusted, canonicalSrc, MAX_BODY,
 } from '@mnemodb/core';
 import type { Entry, LiveEntry, Store, MemDoc } from '@mnemodb/core';
 
@@ -52,14 +52,24 @@ function stem(t: string): string {
   return t;
 }
 
-// Split on anything that is not a letter or number in ANY script (Unicode-aware).
-// The ASCII-only \/[^a-z0-9]+\/ dropped Hebrew, CJK, Cyrillic, Arabic, etc. —
-// non-English memories stored fine but were unsearchable (audit 2026-08-10).
-const NON_WORD = /[^\p{L}\p{N}]+/u;
+// Word-segment in ANY script via Intl.Segmenter. A plain punctuation/space split
+// collapses scripts without word spaces (Chinese/Japanese/Thai) into one giant
+// token, so those memories stored fine but were unsearchable; segmentation is
+// consistent between query and document, so term-overlap still matches even when
+// a compound splits the same way on both sides (audit M7). Space-delimited
+// scripts (Latin, Hebrew, Cyrillic, Arabic, Greek) segment as before.
+const SEGMENTER = new Intl.Segmenter(undefined, { granularity: 'word' });
 function tokens(text: string): string[] {
-  return text.toLowerCase().split(NON_WORD)
-    .filter((t) => t.length > 1 && !STOPWORDS.has(t))
-    .map(stem);
+  const out: string[] = [];
+  for (const { segment, isWordLike } of SEGMENTER.segment(text.normalize('NFC').toLowerCase())) {
+    if (!isWordLike) continue;
+    // Drop bare single ASCII letters/digits (noise); keep single non-ASCII
+    // tokens — a CJK word can be one character. Skip stopwords.
+    if (segment.length < 2 && /^[a-z0-9]$/.test(segment)) continue;
+    if (STOPWORDS.has(segment)) continue;
+    out.push(stem(segment));
+  }
+  return out;
 }
 
 const CONF_BOOST: Record<string, number> = { high: 1.2, med: 1.0, low: 0.8 };
@@ -72,7 +82,7 @@ export function recall(
 ): RecallHit[] {
   const store = loadStore(storeDir);
   const now = opts?.now ?? new Date();
-  const q = tokens(query);
+  const q = [...new Set(tokens(query))]; // dedupe so repeated terms can't inflate score
   if (q.length === 0) return [];
   const hits: RecallHit[] = [];
 
@@ -99,7 +109,7 @@ export function recall(
       body: entry.body.trim(),
       scope,
       src,
-      untrusted: src.startsWith('tool'),
+      untrusted: isUntrusted(src),
       file: doc.path ?? '',
       line: entry.line,
       score: Math.round(score * 100) / 100,
@@ -170,7 +180,7 @@ export function list(
         src,
         tags: e.meta.tags ?? [],
         live,
-        untrusted: src.startsWith('tool'),
+        untrusted: isUntrusted(src),
       });
     }
   }
@@ -239,7 +249,8 @@ function rememberLocked(storeDir: string, input: RememberInput): RememberResult 
   if (!supersedes.length) {
     for (const { entry } of liveEntries(store, now)) {
       if (entry.meta.id && similarity(entry.statement, statement) >= 0.8) {
-        return { status: 'duplicate', id: entry.meta.id, duplicateOf: entry.meta.id, file: '' };
+        const dupFile = store.docs.find((d) => d.entries.some((x) => x.meta.id === entry.meta.id))?.path ?? '';
+        return { status: 'duplicate', id: entry.meta.id, duplicateOf: entry.meta.id, file: dupFile };
       }
     }
   }
@@ -357,7 +368,7 @@ export function bootContext(storeDir: string, now: Date = new Date()): string {
       // Mark tool-derived pins so a session-start reader does not treat
       // injected content as trusted instruction (spec §10).
       const src = entry.meta.src ?? 'agent';
-      const tag = src.startsWith('tool') ? `[${entry.type} · untrusted:tool]` : `[${entry.type}]`;
+      const tag = isUntrusted(src) ? `[${entry.type} · untrusted:tool]` : `[${entry.type}]`;
       parts.push(`${tag} ${entry.statement}`);
     }
   }
@@ -406,7 +417,7 @@ export function show(storeDir: string, id: string, now: Date = new Date()): Show
   return {
     id, type: entry.type, statement: entry.statement, body: entry.body.trim(),
     scope: entry.meta.scope ?? doc.frontMatter?.scope ?? 'project',
-    src, untrusted: src.startsWith('tool'),
+    src, untrusted: isUntrusted(src),
     conf: entry.meta.conf, pin: entry.meta.pin ?? 'auto', tags: entry.meta.tags ?? [],
     updated: entry.meta.updated, ttl: entry.meta.ttl, review: entry.meta.review,
     live: !superseded && !expired,
@@ -435,17 +446,19 @@ export function history(storeDir: string, id: string): HistoryResult | null {
   const node = (e: Entry): HistoryNode => ({
     id: e.meta.id ?? null, statement: e.statement, src: e.meta.src ?? 'agent', updated: e.meta.updated,
   });
+  // Walk ALL superseded predecessors (an entry may replace more than one),
+  // not just the first, so the lineage is complete (audit LOW).
   const supersedes: HistoryNode[] = [];
-  let cur = byId.get(id);
   const seen = new Set<string>([id]);
-  while (cur && cur.meta.supersedes?.length) {
-    const prevId = cur.meta.supersedes[0];
-    if (seen.has(prevId)) break;
+  const queue = [...(byId.get(id)!.meta.supersedes ?? [])];
+  while (queue.length) {
+    const prevId = queue.shift()!;
+    if (seen.has(prevId)) continue;
     seen.add(prevId);
     const prev = byId.get(prevId);
-    if (!prev) break;
+    if (!prev) continue;
     supersedes.push(node(prev));
-    cur = prev;
+    queue.push(...(prev.meta.supersedes ?? []));
   }
   const supersededBy = all
     .filter((e) => (e.meta.supersedes ?? []).includes(id))
@@ -486,7 +499,7 @@ export function stats(storeDir: string, now: Date = new Date()): StatsResult {
       byType[e.type] = (byType[e.type] ?? 0) + 1;
       const scope = e.meta.scope ?? fileScope;
       byScope[scope] = (byScope[scope] ?? 0) + 1;
-      const src = (e.meta.src ?? 'agent').split('/')[0];
+      const src = canonicalSrc(e.meta.src);
       byProvenance[src] = (byProvenance[src] ?? 0) + 1;
       if (isLive && e.meta.pin === 'always') pinnedAlways++;
       if (isLive && isStale(e, now)) stale++;
@@ -541,7 +554,19 @@ export function forget(
       raw: '', line: 0,
     };
     appendEntry(found.doc, tombstone);
-    if (found.doc.path) writeFileAtomic(join(store.root, found.doc.path), serialize(found.doc));
+    const output = serialize(found.doc);
+    // Fail-closed backstop (mirrors remember): the tombstone must register and
+    // the target must now be superseded. If a malformed body (e.g. an unclosed
+    // code fence in a hand-edited/imported entry) swallowed the tombstone
+    // heading, refuse rather than report a false 'forgotten' (audit H1).
+    const reparsed = parse(output);
+    const registered = reparsed.entries.some(
+      (e) => e.meta.id === tombstone.meta.id && (e.meta.supersedes ?? []).includes(id),
+    );
+    if (!registered) {
+      throw new Error('memory_forget: refused — store structure would hide the tombstone (unclosed code fence?)');
+    }
+    if (found.doc.path) writeFileAtomic(join(store.root, found.doc.path), output);
     return { status: 'forgotten', id, reason: opts?.reason };
   });
 }
@@ -564,7 +589,7 @@ export function pin(
     const store = loadStore(storeDir);
     const found = findEntry(store, id);
     if (!found) return { status: 'not-found', id };
-    if (level === 'always' && (found.entry.meta.src ?? 'agent').startsWith('tool')) {
+    if (level === 'always' && isUntrusted(found.entry.meta.src)) {
       return { status: 'refused', id, reason: 'cannot pin a tool-sourced entry to always' };
     }
     found.entry.meta.pin = level;

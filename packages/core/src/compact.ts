@@ -25,7 +25,8 @@ export interface CompactMove {
 
 export interface CompactPlan {
   moves: CompactMove[];
-  /** Documents in their post-compaction form (archive last). Untouched docs excluded. */
+  /** Documents in their post-compaction form. Untouched docs excluded;
+   *  applyCompaction writes the archive before the source removals. */
   changed: MemDoc[];
 }
 
@@ -43,12 +44,16 @@ export function planCompaction(store: Store, now: Date = new Date()): CompactPla
   }
   const dead = supersededIds(store);
   const moves: CompactMove[] = [];
-  const changed = new Set<MemDoc>();
+  const changed: MemDoc[] = [];
   const toArchive: Entry[] = [];
 
+  // Pure: build post-compaction COPIES of changed docs; never mutate the input
+  // store (audit M1-core — planning twice, or previewing then declining, must
+  // not corrupt the loaded store).
   for (const doc of store.docs) {
     if (isArchive(doc)) continue;
     const keep: Entry[] = [];
+    let removedAny = false;
     for (const e of doc.entries) {
       const superseded = e.meta.id ? dead.has(e.meta.id) : false;
       const expired = isExpired(e, now);
@@ -57,38 +62,47 @@ export function planCompaction(store: Store, now: Date = new Date()): CompactPla
           id: e.meta.id ?? null, type: e.type, statement: e.statement,
           from: doc.path ?? '', reason: superseded ? 'superseded' : 'expired',
         });
-        toArchive.push({
-          ...e,
-          meta: { ...e.meta, pin: 'cold' },
-          dirty: true, // regenerate with pin: cold
-        });
-        changed.add(doc);
+        toArchive.push({ ...e, meta: { ...e.meta, pin: 'cold' }, dirty: true });
+        removedAny = true;
       } else {
         keep.push(e);
       }
     }
-    doc.entries = keep;
+    if (removedAny) changed.push({ ...doc, entries: keep });
   }
 
-  if (toArchive.length > 0) {
-    for (const e of toArchive) {
-      const last = archive.entries.at(-1);
-      const prevText = last ? last.raw : archive.preamble;
-      const needsGap = prevText !== '' && !prevText.endsWith('\n\n');
-      let block = serializeEntry(e);
-      if (!block.endsWith('\n')) block += '\n';
-      archive.entries.push({ ...e, raw: (needsGap ? '\n' : '') + block, dirty: false });
-    }
-    changed.add(archive);
+  if (toArchive.length === 0) return { moves, changed: [] };
+
+  // Copy of the archive with the moved entries appended.
+  const archiveCopy: MemDoc = { ...archive, entries: [...archive.entries] };
+  for (const e of toArchive) {
+    const last = archiveCopy.entries.at(-1);
+    const prevText = last ? last.raw : archiveCopy.preamble;
+    const needsGap = prevText !== '' && !prevText.endsWith('\n\n');
+    let block = serializeEntry(e);
+    if (!block.endsWith('\n')) block += '\n';
+    archiveCopy.entries.push({ ...e, raw: (needsGap ? '\n' : '') + block, dirty: false });
   }
 
-  return { moves, changed: [...changed] };
+  // Archive first (applyCompaction also orders it first — audit H3).
+  return { moves, changed: [archiveCopy, ...changed] };
 }
 
-/** Apply a plan: atomic write (temp file + rename) per changed document (spec §11). */
+/**
+ * Apply a plan: atomic write (temp file + rename) per changed document (spec §11).
+ *
+ * Writes are per-file atomic but there is no cross-file transaction, so the
+ * ARCHIVE is written FIRST and the source removals after. If a later write
+ * throws (disk full, FS error), an interrupted run leaves the moved entries in
+ * BOTH the archive and their source — recoverable duplicates that `doctor`
+ * flags as duplicate-id — rather than lost from both (audit H3).
+ */
 export function applyCompaction(store: Store, plan: CompactPlan): string[] {
   const written: string[] = [];
-  for (const doc of plan.changed) {
+  const ordered = [...plan.changed].sort(
+    (a, b) => (isArchive(b) ? 1 : 0) - (isArchive(a) ? 1 : 0),
+  );
+  for (const doc of ordered) {
     if (!doc.path) continue;
     const abs = join(store.root, doc.path);
     writeFileAtomic(abs, serialize(doc));
