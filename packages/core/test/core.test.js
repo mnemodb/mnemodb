@@ -122,6 +122,32 @@ test('merge: union by id, revision race by updated, anonymous dedupe', () => {
   assert.match(shared.statement, /REVISED/, 'later updated wins');
 });
 
+test('merge does not glue entries when a side lacks a trailing newline (audit C1)', () => {
+  const ours = parse('## fact: a\n`mnemo aaaa | updated: 2026-08-01`');   // no final newline
+  const theirs = parse('## fact: b\n`mnemo bbbb | updated: 2026-08-02`\n');
+  const re = parse(serialize(mergeDocs(ours, theirs)));
+  assert.deepEqual(re.entries.map((e) => e.meta.id).sort(), ['aaaa', 'bbbb'], 'both entries survive');
+});
+
+test('merge: higher trust wins even when the lower-trust side is newer (audit H4)', () => {
+  const user = parse('## pref: no deploys on friday\n`mnemo xx01 | src: user | updated: 2026-08-01`\n');
+  const tool = parse('## pref: deploy anytime\n`mnemo xx01 | src: tool | updated: 2030-01-01`\n');
+  assert.match(mergeDocs(user, tool).entries.find((e) => e.meta.id === 'xx01').statement, /no deploys/, 'user not overridden');
+  assert.match(mergeDocs(tool, user).entries.find((e) => e.meta.id === 'xx01').statement, /no deploys/, 'order-independent');
+});
+
+test('merge surfaces preamble divergence instead of silently dropping it (audit H4)', () => {
+  const a = parse('# Notes\nAlways run tests.\n\n## fact: x\n`mnemo aa01`\n');
+  const b = parse('# Notes\nUse pnpm and lint first.\n\n## fact: x\n`mnemo aa01`\n');
+  assert.ok(mergeDocs(a, b).diagnostics.some((d) => d.rule === 'preamble-diverged'), 'divergence flagged');
+});
+
+test('merge output is byte-identical regardless of argument order (audit M5)', () => {
+  const a = parse('## fact: A\n`mnemo aaa1 | updated: 2026-08-01`\n\n## fact: C\n`mnemo ccc1`\n');
+  const b = parse('## fact: B\n`mnemo bbb1 | updated: 2026-08-02`\n');
+  assert.equal(serialize(mergeDocs(a, b)), serialize(mergeDocs(b, a)), 'converges byte-for-byte');
+});
+
 test('merge is commutative and idempotent on entry sets', () => {
   const a = parse('## fact: A\n`mnemo aaa1 | updated: 2026-08-01`\n');
   const b = parse('## fact: B\n`mnemo bbb1 | updated: 2026-08-02`\n');
