@@ -1,6 +1,7 @@
 {
   "name": "mnemodb-monorepo",
   "private": true,
+  "type": "module",
   "workspaces": [
     "packages/*"
   ],
