@@ -60,9 +60,11 @@ function cmdList(dir: string): number {
     console.log('No entries found.');
     return 0;
   }
-  const live = new Set(liveEntries(store).map((l) => l.entry));
+  // Key liveness by file:line, not id — id-less entries have id null and would
+  // otherwise always compare unequal and mis-render as superseded (audit LOW).
+  const liveKey = new Set(liveEntries(store).map((l) => `${l.doc.path ?? ''}:${l.entry.line}`));
   for (const e of index) {
-    const liveMark = [...live].some((x) => x.meta.id === e.id) ? ' ' : 'x';
+    const liveMark = liveKey.has(`${e.file}:${e.line}`) ? ' ' : 'x';
     console.log(
       `${liveMark} [${e.type.padEnd(8)}] ${(e.id ?? '----').padEnd(8)} ` +
       `${e.pin === 'always' ? '📌' : e.pin === 'cold' ? '❄' : ' '} ${e.statement}`,
@@ -187,12 +189,19 @@ commands:
   return 0;
 }
 
-const exit =
-  command === 'init' ? cmdInit(target) :
-  command === 'list' ? cmdList(target) :
-  command === 'show' ? cmdShow(args[1] ? args[0] : '.', args[1] ?? args[0]) :
-  command === 'doctor' ? cmdDoctor(target) :
-  command === 'compact' ? cmdCompact(target) :
-  command === 'migrate' ? cmdMigrate(target) :
-  help();
+let exit: number;
+try {
+  exit =
+    command === 'init' ? cmdInit(target) :
+    command === 'list' ? cmdList(target) :
+    command === 'show' ? cmdShow(args[1] ? args[0] : '.', args[1] ?? args[0]) :
+    command === 'doctor' ? cmdDoctor(target) :
+    command === 'compact' ? cmdCompact(target) :
+    command === 'migrate' ? cmdMigrate(target) :
+    help();
+} catch (e) {
+  // Friendly one-line error instead of a raw stack trace (audit LOW).
+  console.error(`mnemo ${command}: ${(e as Error).message}`);
+  exit = 1;
+}
 process.exit(exit);

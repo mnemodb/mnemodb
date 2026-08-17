@@ -72,7 +72,7 @@ export function recall(
 ): RecallHit[] {
   const store = loadStore(storeDir);
   const now = opts?.now ?? new Date();
-  const q = tokens(query);
+  const q = [...new Set(tokens(query))]; // dedupe so repeated terms can't inflate score
   if (q.length === 0) return [];
   const hits: RecallHit[] = [];
 
@@ -239,7 +239,8 @@ function rememberLocked(storeDir: string, input: RememberInput): RememberResult 
   if (!supersedes.length) {
     for (const { entry } of liveEntries(store, now)) {
       if (entry.meta.id && similarity(entry.statement, statement) >= 0.8) {
-        return { status: 'duplicate', id: entry.meta.id, duplicateOf: entry.meta.id, file: '' };
+        const dupFile = store.docs.find((d) => d.entries.some((x) => x.meta.id === entry.meta.id))?.path ?? '';
+        return { status: 'duplicate', id: entry.meta.id, duplicateOf: entry.meta.id, file: dupFile };
       }
     }
   }
@@ -435,17 +436,19 @@ export function history(storeDir: string, id: string): HistoryResult | null {
   const node = (e: Entry): HistoryNode => ({
     id: e.meta.id ?? null, statement: e.statement, src: e.meta.src ?? 'agent', updated: e.meta.updated,
   });
+  // Walk ALL superseded predecessors (an entry may replace more than one),
+  // not just the first, so the lineage is complete (audit LOW).
   const supersedes: HistoryNode[] = [];
-  let cur = byId.get(id);
   const seen = new Set<string>([id]);
-  while (cur && cur.meta.supersedes?.length) {
-    const prevId = cur.meta.supersedes[0];
-    if (seen.has(prevId)) break;
+  const queue = [...(byId.get(id)!.meta.supersedes ?? [])];
+  while (queue.length) {
+    const prevId = queue.shift()!;
+    if (seen.has(prevId)) continue;
     seen.add(prevId);
     const prev = byId.get(prevId);
-    if (!prev) break;
+    if (!prev) continue;
     supersedes.push(node(prev));
-    cur = prev;
+    queue.push(...(prev.meta.supersedes ?? []));
   }
   const supersededBy = all
     .filter((e) => (e.meta.supersedes ?? []).includes(id))
