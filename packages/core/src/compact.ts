@@ -44,12 +44,16 @@ export function planCompaction(store: Store, now: Date = new Date()): CompactPla
   }
   const dead = supersededIds(store);
   const moves: CompactMove[] = [];
-  const changed = new Set<MemDoc>();
+  const changed: MemDoc[] = [];
   const toArchive: Entry[] = [];
 
+  // Pure: build post-compaction COPIES of changed docs; never mutate the input
+  // store (audit M1-core — planning twice, or previewing then declining, must
+  // not corrupt the loaded store).
   for (const doc of store.docs) {
     if (isArchive(doc)) continue;
     const keep: Entry[] = [];
+    let removedAny = false;
     for (const e of doc.entries) {
       const superseded = e.meta.id ? dead.has(e.meta.id) : false;
       const expired = isExpired(e, now);
@@ -58,32 +62,30 @@ export function planCompaction(store: Store, now: Date = new Date()): CompactPla
           id: e.meta.id ?? null, type: e.type, statement: e.statement,
           from: doc.path ?? '', reason: superseded ? 'superseded' : 'expired',
         });
-        toArchive.push({
-          ...e,
-          meta: { ...e.meta, pin: 'cold' },
-          dirty: true, // regenerate with pin: cold
-        });
-        changed.add(doc);
+        toArchive.push({ ...e, meta: { ...e.meta, pin: 'cold' }, dirty: true });
+        removedAny = true;
       } else {
         keep.push(e);
       }
     }
-    doc.entries = keep;
+    if (removedAny) changed.push({ ...doc, entries: keep });
   }
 
-  if (toArchive.length > 0) {
-    for (const e of toArchive) {
-      const last = archive.entries.at(-1);
-      const prevText = last ? last.raw : archive.preamble;
-      const needsGap = prevText !== '' && !prevText.endsWith('\n\n');
-      let block = serializeEntry(e);
-      if (!block.endsWith('\n')) block += '\n';
-      archive.entries.push({ ...e, raw: (needsGap ? '\n' : '') + block, dirty: false });
-    }
-    changed.add(archive);
+  if (toArchive.length === 0) return { moves, changed: [] };
+
+  // Copy of the archive with the moved entries appended.
+  const archiveCopy: MemDoc = { ...archive, entries: [...archive.entries] };
+  for (const e of toArchive) {
+    const last = archiveCopy.entries.at(-1);
+    const prevText = last ? last.raw : archiveCopy.preamble;
+    const needsGap = prevText !== '' && !prevText.endsWith('\n\n');
+    let block = serializeEntry(e);
+    if (!block.endsWith('\n')) block += '\n';
+    archiveCopy.entries.push({ ...e, raw: (needsGap ? '\n' : '') + block, dirty: false });
   }
 
-  return { moves, changed: [...changed] };
+  // Archive first (applyCompaction also orders it first — audit H3).
+  return { moves, changed: [archiveCopy, ...changed] };
 }
 
 /**

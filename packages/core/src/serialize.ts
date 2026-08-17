@@ -6,6 +6,7 @@
  * from their preserved `raw` text. Entries marked `dirty` (or created
  * programmatically without `raw`) are regenerated from fields.
  */
+import { randomInt } from 'node:crypto';
 import type { Entry, MemDoc } from './types.js';
 import { sanitizeStatement, sanitizeBody, sanitizeTags } from './sanitize.js';
 
@@ -70,7 +71,7 @@ export function generateId(existing?: Set<string>): string {
   const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
   for (;;) {
     let id = '';
-    for (let i = 0; i < 8; i++) id += alphabet[Math.floor(Math.random() * alphabet.length)];
+    for (let i = 0; i < 8; i++) id += alphabet[randomInt(alphabet.length)];
     if (!existing?.has(id)) return id;
   }
 }

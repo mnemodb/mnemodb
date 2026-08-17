@@ -28,6 +28,12 @@ function anchorDate(entry: Entry): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Whether an entry has a usable date anchor (updated, or a date in src). An
+ *  entry with a ttl but no anchor can never expire — doctor flags that. */
+export function hasAnchor(entry: Entry): boolean {
+  return anchorDate(entry) !== null;
+}
+
 /** Expired: past ttl measured from `updated` (spec §8). Unknown anchor → not expired. */
 export function isExpired(entry: Entry, now: Date = new Date()): boolean {
   const days = ttlDays(entry.meta.ttl, entry.type);

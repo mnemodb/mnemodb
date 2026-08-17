@@ -406,3 +406,26 @@ test('store lock: held lock blocks, stale lock is broken', async () => {
   utimesSync(join(root, '.mnemo-lock'), old, old);
   assert.equal(withStoreLock(root, () => 'stolen', { timeoutMs: 2000 }), 'stolen');
 });
+
+test('planCompaction does not mutate the input store; planning twice is stable (audit M1-core)', async () => {
+  const { mkdtempSync, cpSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { planCompaction } = await import('../dist/index.js');
+  const tmp = mkdtempSync(join(tmpdir(), 'purity-'));
+  cpSync(DOGFOOD, tmp, { recursive: true });
+  const store = loadStore(tmp);
+  const before = store.docs.map((d) => d.entries.length);
+  const p1 = planCompaction(store, new Date('2026-08-10'));
+  assert.deepEqual(store.docs.map((d) => d.entries.length), before, 'planning must not mutate the store');
+  const p2 = planCompaction(store, new Date('2026-08-10'));
+  assert.deepEqual(
+    p2.moves.map((m) => m.id).sort(), p1.moves.map((m) => m.id).sort(),
+    'planning twice yields the same moves',
+  );
+});
+
+test('doctor flags a ttl with no date anchor (audit LOW)', () => {
+  const doc = parse('## fact: x\n`mnemo aa01 | ttl: 30d`\n'); // ttl but no updated / no date in src
+  const store = { root: '.', docs: [doc] };
+  assert.ok(doctor(store).diagnostics.some((d) => d.rule === 'ttl-no-anchor'), 'ttl-without-anchor flagged');
+});

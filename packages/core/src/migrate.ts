@@ -49,12 +49,13 @@ const MAX_STATEMENT = 160;
  * Default type is `note`; retype entries as decisions/facts/prefs over time.
  */
 export function importClaudeMemoryDir(
-  dir: string, opts?: { type?: string; src?: string; today?: string },
+  dir: string, opts?: { type?: string; src?: string; today?: string; existingIds?: Iterable<string> },
 ): ImportedEntry[] {
   const type = opts?.type ?? 'note';
   const src = opts?.src ?? 'agent';
   const date = opts?.today ?? new Date().toISOString().slice(0, 10);
-  const used = new Set<string>();
+  // Seed with the target store's ids so imports can't mint a colliding id.
+  const used = new Set<string>(opts?.existingIds);
   const out: ImportedEntry[] = [];
 
   for (const f of readdirSync(dir).filter((x) => MD_RE.test(x)).sort()) {
@@ -112,7 +113,7 @@ interface Record_ {
  * the rest becomes the body. Returns entries ready for appendEntry().
  */
 export function importNumberedDir(
-  dir: string, opts?: { type?: string; src?: string; today?: string },
+  dir: string, opts?: { type?: string; src?: string; today?: string; existingIds?: Iterable<string> },
 ): ImportedEntry[] {
   const type = opts?.type ?? 'decision';
   const date = opts?.today ?? new Date().toISOString().slice(0, 10);
@@ -142,7 +143,8 @@ export function importNumberedDir(
   }
 
   // Pass 2: assign ids, then wire supersession (newer supersedes older).
-  const used = new Set<string>();
+  // Seed with the target store's ids so imports can't mint a colliding id.
+  const used = new Set<string>(opts?.existingIds);
   const idByNum = new Map<string, string>();
   for (const r of records) {
     const id = generateId(used);
