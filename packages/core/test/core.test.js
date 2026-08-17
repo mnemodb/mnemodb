@@ -183,6 +183,45 @@ test('applyCompaction writes the archive before source removals (audit H3)', asy
   assert.match(written[0], /archive\.mem\.md$/, 'archive written first so an interrupted run cannot lose entries');
 });
 
+test('withStoreLock fails fast on an unusable lock path instead of spinning (audit M1)', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { withStoreLock } = await import('../dist/index.js');
+  const base = mkdtempSync(join(tmpdir(), 'lockm1-'));
+  const filePath = join(base, 'afile');
+  writeFileSync(filePath, 'x');
+  // storeRoot under a regular file → lockDir mkdir gets ENOTDIR → must throw fast.
+  assert.throws(() => withStoreLock(join(filePath, 'sub'), () => 42, { timeoutMs: 500 }),
+    /Cannot create store lock|ENOTDIR/);
+});
+
+test('withStoreLock does not break a lock held by a live process (audit M2)', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, utimesSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { withStoreLock } = await import('../dist/index.js');
+  const root = mkdtempSync(join(tmpdir(), 'lockm2a-'));
+  const lockDir = join(root, '.mnemo-lock');
+  mkdirSync(lockDir);
+  writeFileSync(join(lockDir, 'pid'), String(process.pid)); // held by us — a live pid
+  const old = new Date(Date.now() - 60_000);
+  utimesSync(lockDir, old, old);                            // looks stale by mtime
+  assert.throws(() => withStoreLock(root, () => 1, { timeoutMs: 300 }), /Timed out/,
+    'a live holder is never broken even when the lock looks stale');
+});
+
+test('withStoreLock breaks a lock whose holder pid is dead (audit M2)', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, utimesSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { withStoreLock } = await import('../dist/index.js');
+  const root = mkdtempSync(join(tmpdir(), 'lockm2b-'));
+  const lockDir = join(root, '.mnemo-lock');
+  mkdirSync(lockDir);
+  writeFileSync(join(lockDir, 'pid'), '2147483646');       // a pid that is not alive
+  const old = new Date(Date.now() - 60_000);
+  utimesSync(lockDir, old, old);
+  assert.equal(withStoreLock(root, () => 7, { timeoutMs: 1000 }), 7, 'dead-holder lock is broken and acquired');
+});
+
 test('trustRank/isUntrusted canonicalize src and fail closed for unknown (audit H2)', async () => {
   const { trustRank, isUntrusted } = await import('../dist/index.js');
   for (const s of ['tool', 'Tool', 'TOOL', 'tool ', 'tool\t', 'tool/web']) {
