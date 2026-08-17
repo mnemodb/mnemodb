@@ -61,6 +61,15 @@ export function parse(source: string, path?: string): MemDoc {
     }
     if (fenceChar === null && line.startsWith('## ')) headingLines.push(i);
   }
+  // An unclosed fence at EOF means a later appended entry would be swallowed
+  // (its heading parsed as code). Surface it so `doctor` can flag hand-edited /
+  // imported content that bypassed write-time fence balancing (audit H1).
+  if (fenceChar !== null) {
+    diagnostics.push({
+      level: 'error', line: lineOffset + lines.length, rule: 'unclosed-fence',
+      message: 'Unclosed code fence (``` or ~~~) at end of file — later entries may be hidden until it is closed.',
+    });
+  }
 
   const preamble = headingLines.length === 0
     ? rest

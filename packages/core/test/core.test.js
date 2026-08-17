@@ -282,6 +282,13 @@ test('CRLF documents (Windows checkouts) parse with correct types and stay byte-
   assert.equal(serialize(doc), src, 'CRLF bytes preserved exactly on round-trip');
 });
 
+test('parse flags an unclosed code fence; a balanced fence does not (audit H1)', () => {
+  const open = parse('## note: x\n`mnemo aa01`\n```\nunclosed\n');
+  assert.ok(open.diagnostics.some((d) => d.rule === 'unclosed-fence'), 'open fence flagged');
+  const closed = parse('## note: x\n`mnemo aa01`\n```\nclosed\n```\n');
+  assert.ok(!closed.diagnostics.some((d) => d.rule === 'unclosed-fence'), 'balanced fence not flagged');
+});
+
 test('fenced code blocks containing ## lines are not split into entries', () => {
   const src = '## fact: build script structure\n`mnemo cb01 | src: agent`\n\n' +
     'The script:\n\n```markdown\n## fact: EXAMPLE inside a fence\n`mnemo fake1`\n```\n\nEnd.\n' +

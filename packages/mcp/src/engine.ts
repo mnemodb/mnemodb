@@ -541,7 +541,19 @@ export function forget(
       raw: '', line: 0,
     };
     appendEntry(found.doc, tombstone);
-    if (found.doc.path) writeFileAtomic(join(store.root, found.doc.path), serialize(found.doc));
+    const output = serialize(found.doc);
+    // Fail-closed backstop (mirrors remember): the tombstone must register and
+    // the target must now be superseded. If a malformed body (e.g. an unclosed
+    // code fence in a hand-edited/imported entry) swallowed the tombstone
+    // heading, refuse rather than report a false 'forgotten' (audit H1).
+    const reparsed = parse(output);
+    const registered = reparsed.entries.some(
+      (e) => e.meta.id === tombstone.meta.id && (e.meta.supersedes ?? []).includes(id),
+    );
+    if (!registered) {
+      throw new Error('memory_forget: refused — store structure would hide the tombstone (unclosed code fence?)');
+    }
+    if (found.doc.path) writeFileAtomic(join(store.root, found.doc.path), output);
     return { status: 'forgotten', id, reason: opts?.reason };
   });
 }
