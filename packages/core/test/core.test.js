@@ -183,6 +183,18 @@ test('applyCompaction writes the archive before source removals (audit H3)', asy
   assert.match(written[0], /archive\.mem\.md$/, 'archive written first so an interrupted run cannot lose entries');
 });
 
+test('trustRank/isUntrusted canonicalize src and fail closed for unknown (audit H2)', async () => {
+  const { trustRank, isUntrusted } = await import('../dist/index.js');
+  for (const s of ['tool', 'Tool', 'TOOL', 'tool ', 'tool\t', 'tool/web']) {
+    assert.equal(trustRank(s), 1, `${JSON.stringify(s)} ranks as tool`);
+    assert.equal(isUntrusted(s), true, `${JSON.stringify(s)} is untrusted`);
+  }
+  assert.equal(trustRank('User'), 3, 'User canonicalizes to user');
+  assert.equal(trustRank('AGENT'), 2, 'AGENT canonicalizes to agent');
+  assert.equal(trustRank('mystery'), 1, 'unknown src fails closed to tool tier');
+  assert.equal(isUntrusted('mystery'), true, 'unknown src is untrusted');
+});
+
 test('untyped markdown file (CLAUDE.md) is a valid all-preamble document', () => {
   const src = '# My instructions\n\nAlways run tests.\n\nUse pnpm.\n';
   const doc = parse(src);

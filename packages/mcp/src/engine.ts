@@ -13,7 +13,7 @@ import {
   loadStore, liveEntries, deriveIndex, supersededIds, parse, serialize,
   appendEntry, generateId, writeFileAtomic, doctor, planCompaction,
   applyCompaction, isExpired, isStale, estimateTokens, withStoreLock,
-  sanitizeStatement, trustRank, MAX_BODY,
+  sanitizeStatement, trustRank, isUntrusted, canonicalSrc, MAX_BODY,
 } from '@mnemodb/core';
 import type { Entry, LiveEntry, Store, MemDoc } from '@mnemodb/core';
 
@@ -99,7 +99,7 @@ export function recall(
       body: entry.body.trim(),
       scope,
       src,
-      untrusted: src.startsWith('tool'),
+      untrusted: isUntrusted(src),
       file: doc.path ?? '',
       line: entry.line,
       score: Math.round(score * 100) / 100,
@@ -170,7 +170,7 @@ export function list(
         src,
         tags: e.meta.tags ?? [],
         live,
-        untrusted: src.startsWith('tool'),
+        untrusted: isUntrusted(src),
       });
     }
   }
@@ -357,7 +357,7 @@ export function bootContext(storeDir: string, now: Date = new Date()): string {
       // Mark tool-derived pins so a session-start reader does not treat
       // injected content as trusted instruction (spec §10).
       const src = entry.meta.src ?? 'agent';
-      const tag = src.startsWith('tool') ? `[${entry.type} · untrusted:tool]` : `[${entry.type}]`;
+      const tag = isUntrusted(src) ? `[${entry.type} · untrusted:tool]` : `[${entry.type}]`;
       parts.push(`${tag} ${entry.statement}`);
     }
   }
@@ -406,7 +406,7 @@ export function show(storeDir: string, id: string, now: Date = new Date()): Show
   return {
     id, type: entry.type, statement: entry.statement, body: entry.body.trim(),
     scope: entry.meta.scope ?? doc.frontMatter?.scope ?? 'project',
-    src, untrusted: src.startsWith('tool'),
+    src, untrusted: isUntrusted(src),
     conf: entry.meta.conf, pin: entry.meta.pin ?? 'auto', tags: entry.meta.tags ?? [],
     updated: entry.meta.updated, ttl: entry.meta.ttl, review: entry.meta.review,
     live: !superseded && !expired,
@@ -486,7 +486,7 @@ export function stats(storeDir: string, now: Date = new Date()): StatsResult {
       byType[e.type] = (byType[e.type] ?? 0) + 1;
       const scope = e.meta.scope ?? fileScope;
       byScope[scope] = (byScope[scope] ?? 0) + 1;
-      const src = (e.meta.src ?? 'agent').split('/')[0];
+      const src = canonicalSrc(e.meta.src);
       byProvenance[src] = (byProvenance[src] ?? 0) + 1;
       if (isLive && e.meta.pin === 'always') pinnedAlways++;
       if (isLive && isStale(e, now)) stale++;
@@ -576,7 +576,7 @@ export function pin(
     const store = loadStore(storeDir);
     const found = findEntry(store, id);
     if (!found) return { status: 'not-found', id };
-    if (level === 'always' && (found.entry.meta.src ?? 'agent').startsWith('tool')) {
+    if (level === 'always' && isUntrusted(found.entry.meta.src)) {
       return { status: 'refused', id, reason: 'cannot pin a tool-sourced entry to always' };
     }
     found.entry.meta.pin = level;
