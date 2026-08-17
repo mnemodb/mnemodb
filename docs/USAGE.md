@@ -53,7 +53,7 @@ Restart Claude Code and you're set - skip to step 3.
 the server (once):
 
 ```
-claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.9
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.10
 ```
 
 Now the agent *can* recall and remember — but it won't do it reliably unless you
@@ -137,7 +137,7 @@ memories move to `archive.mem.md`, so history is always recoverable.
 ## A realistic first session
 
 1. `npx @mnemodb/cli init`
-2. `claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.9`
+2. `claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.10`
 3. Paste the Memory paragraph (§2B) into your `CLAUDE.md`.
 4. Work normally. When you decide something, say "remember that." Tomorrow, start a
    fresh session and ask "what did we decide about X?" — that moment, where it
