@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsc -b --force packages/core packages/cli packages/mcp",
     "test": "npm run build && node --test \"packages/core/test/*.test.js\" \"packages/mcp/test/*.test.js\" \"plugin/test/*.test.js\"",
-    "test:security": "npm run build && node --test \"packages/mcp/test/security.test.js\""
+    "test:security": "npm run build && node --test \"packages/mcp/test/security.test.js\"",
+    "bench": "npm run build && node packages/mcp/bench/run.mjs"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
