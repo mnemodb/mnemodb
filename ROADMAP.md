@@ -15,7 +15,11 @@ so. That's how items move up.
 - `@mnemodb/mcp` — 11 memory-semantic tools (recall, list, show, history, stats,
   remember, forget, pin, review, compact, boot).
 - Security: provenance + trust model, injection defense, adversarial ship-gate.
-- i18n search for space-delimited scripts (Hebrew, Cyrillic, Arabic, Greek…).
+- i18n search for space-delimited scripts (Hebrew, Cyrillic, Arabic, Greek…),
+  plus CJK / Japanese / Thai word-segmentation via `Intl.Segmenter`.
+- Retrieval-accuracy benchmark — labeled query→expected fixtures with
+  precision@k / recall@k / MRR, a `npm run bench` report, and a CI regression
+  guard (`packages/mcp/bench/`).
 - **Claude Code plugin** — MCP server + `agent-memory` skill + session-start
   hook, so memory works on install (`/plugin marketplace add mnemodb/mnemodb`).
   The MCP store is pinned to the project root, so writes can't scatter.
@@ -32,8 +36,9 @@ Ordered by current guess at leverage; real use may reorder them.
 - **`migrate` + `init` clarity** — today running both leaves an orphan
   `*.mem.md` next to the store; `migrate` should place output into `.memory/` or
   warn. (Audit finding #4.)
-- **Retrieval for CJK and bound-prefix scripts** — word-segmentation for
-  Chinese/Japanese/Korean; prefix-aware matching for Hebrew/Arabic.
+- **Bound-prefix retrieval for Hebrew/Arabic** — prefix-aware matching so a
+  query for a bare word also matches its ה/ב/ל-prefixed forms. (CJK/Japanese/Thai
+  word-segmentation already shipped.)
 - **`doctor` / `list` polish** — distinguish damaged entries from
   superseded/expired in output; richer health summaries.
 - **Deterministic conformance fixtures** — fixed ids so the corpus is stable.
@@ -41,8 +46,11 @@ Ordered by current guess at leverage; real use may reorder them.
 ## Directions (later / exploratory)
 
 - **Semantic search** — optional embedding-based recall alongside keyword, for
-  fuzzy queries. Held until real use shows keyword recall is missing things
-  (it's a heavier dependency).
+  paraphrase and cross-lingual queries. The retrieval benchmark now quantifies
+  the gap it targets: keyword recall scores ~100% on exact queries but only
+  ~60% recall / ~20% hit@1 on paraphrases (a ~40-point recall gap). Build it
+  against that fixture set so any gain is measured, not assumed — it stays a
+  heavier optional dependency until the numbers justify it.
 - **Adapter for Claude's native memory tool** — the *import* direction shipped
   in 0.1.6 (`mnemo migrate --claude-memory` reads a native-memory dir into
   `.mem.md`). Still open: the reverse — let Claude's built-in memory *write*
