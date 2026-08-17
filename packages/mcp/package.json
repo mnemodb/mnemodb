@@ -1,6 +1,6 @@
 {
   "name": "@mnemodb/mcp",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "MnemoDB memory engine as an MCP server: memory_recall, memory_remember, memory_review, memory_compact over human-readable .mem.md stores.",
   "license": "Apache-2.0",
   "author": "Ziv (zivuch)",
@@ -16,7 +16,7 @@
     "CHANGELOG.md"
   ],
   "dependencies": {
-    "@mnemodb/core": "0.1.9",
+    "@mnemodb/core": "0.1.10",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "zod": "^3.23.0"
   },

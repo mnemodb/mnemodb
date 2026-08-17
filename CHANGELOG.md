@@ -6,6 +6,51 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.10] — 2026-08-17
+
+Security and correctness hardening from a full adversarial audit. 22 new
+regression tests (the suite runs as a ship gate on every publish).
+
+### Security
+- **Unclosed-fence poisoning fixed.** A stray ``` ``` ``` in a memory body could
+  leave an open code fence that swallowed later entries — persistently bricking
+  `remember`, silently no-op'ing `forget`, and hiding entries from `doctor`.
+  Bodies are now fence-balanced on write, `forget` fails closed, and `doctor`
+  flags an unclosed fence.
+- **Provenance can no longer be spoofed.** Trust is decided on a canonical `src`
+  (NFC + first segment + trim + lowercase) and fails *closed* to the
+  least-privileged tier, so `src: Tool` / `TOOL` / `tool ` can't bypass the
+  supersede bar, the `forged-supersede` check, or the `untrusted` flag.
+- **Supply chain.** The plugin now pins the server to an exact version
+  (`@mnemodb/mcp@0.1.10`) instead of always pulling latest; a new tag-triggered
+  workflow publishes all packages with npm **provenance** (sigstore); CI/release
+  actions are pinned to commit SHAs.
+
+### Correctness / data safety
+- `mergeDocs`: no longer glues adjacent entries (silent data loss), respects
+  trust when resolving same-id revisions (a lower-trust copy can't win),
+  surfaces preamble/front-matter divergence instead of dropping one side, and
+  converges byte-for-byte regardless of argument order.
+- Compaction writes the archive **first**, so an interrupted run leaves
+  recoverable duplicates rather than lost entries.
+- The store lock fails fast on an unusable path (no CPU-spin) and won't break a
+  lock held by a live process (no lost writes).
+- `planCompaction` is now pure (preview/replan can't corrupt the store); imports
+  can't mint an id that collides with an existing one.
+
+### Retrieval
+- **CJK / Japanese / Thai memories are searchable** via `Intl.Segmenter` word
+  segmentation (previously they stored fine but returned nothing).
+- Query tokens are deduped so keyword-stuffing can't inflate score; `history`
+  returns the full supersession lineage, not just the first predecessor.
+
+### Fixes & docs
+- Version drift resolved: the MCP server derives its version from `package.json`;
+  plugin/marketplace manifests aligned. Spec corrected (id grammar vs the ULID
+  recommendation; the untyped-entry definition now matches the parser). The CLI
+  prints a friendly one-line error on a bad store instead of a stack trace;
+  `generateId` uses a crypto RNG; new `doctor` `ttl-no-anchor` check.
+
 ## [0.1.9] — 2026-08-12
 
 The Windows atomic-write fix finally reaches npm. 0.1.6–0.1.8 all shipped a
@@ -177,6 +222,7 @@ audit. Left published for history; not recommended for use.
   `memory_remember`, `memory_review`, `memory_compact`, `memory_boot`.
 - Conformance fixtures, including the project's own dogfood memory store.
 
+[0.1.10]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.10
 [0.1.9]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.9
 [0.1.8]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.8
 [0.1.7]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.7
