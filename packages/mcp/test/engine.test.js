@@ -260,3 +260,11 @@ test('remember duplicate reports the file the existing entry lives in (audit LOW
   assert.equal(d.status, 'duplicate');
   assert.equal(d.file, 'project.mem.md', 'duplicate reports the real file, not an empty string');
 });
+
+test('CJK memories are searchable via word segmentation (audit M7)', () => {
+  const dir = freshStore();
+  remember(dir, { statement: '选择 PostgreSQL 数据库方案而不是 Redis 缓存', type: 'decision', now: NOW });
+  remember(dir, { statement: 'データベースを選択する理由と背景', type: 'note', now: NOW });
+  assert.ok(recall(dir, '数据库', { now: NOW }).length >= 1, 'Chinese query finds the Chinese memory');
+  assert.ok(recall(dir, 'データベース', { now: NOW }).length >= 1, 'Japanese query finds the Japanese memory');
+});

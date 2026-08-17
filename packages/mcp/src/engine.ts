@@ -52,14 +52,24 @@ function stem(t: string): string {
   return t;
 }
 
-// Split on anything that is not a letter or number in ANY script (Unicode-aware).
-// The ASCII-only \/[^a-z0-9]+\/ dropped Hebrew, CJK, Cyrillic, Arabic, etc. —
-// non-English memories stored fine but were unsearchable (audit 2026-08-10).
-const NON_WORD = /[^\p{L}\p{N}]+/u;
+// Word-segment in ANY script via Intl.Segmenter. A plain punctuation/space split
+// collapses scripts without word spaces (Chinese/Japanese/Thai) into one giant
+// token, so those memories stored fine but were unsearchable; segmentation is
+// consistent between query and document, so term-overlap still matches even when
+// a compound splits the same way on both sides (audit M7). Space-delimited
+// scripts (Latin, Hebrew, Cyrillic, Arabic, Greek) segment as before.
+const SEGMENTER = new Intl.Segmenter(undefined, { granularity: 'word' });
 function tokens(text: string): string[] {
-  return text.toLowerCase().split(NON_WORD)
-    .filter((t) => t.length > 1 && !STOPWORDS.has(t))
-    .map(stem);
+  const out: string[] = [];
+  for (const { segment, isWordLike } of SEGMENTER.segment(text.normalize('NFC').toLowerCase())) {
+    if (!isWordLike) continue;
+    // Drop bare single ASCII letters/digits (noise); keep single non-ASCII
+    // tokens — a CJK word can be one character. Skip stopwords.
+    if (segment.length < 2 && /^[a-z0-9]$/.test(segment)) continue;
+    if (STOPWORDS.has(segment)) continue;
+    out.push(stem(segment));
+  }
+  return out;
 }
 
 const CONF_BOOST: Record<string, number> = { high: 1.2, med: 1.0, low: 0.8 };
