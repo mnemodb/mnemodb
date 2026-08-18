@@ -36,6 +36,42 @@ npx @mnemodb/cli migrate ~/.claude/projects/<project>/memory --claude-memory --i
 Each topic file becomes a typed entry (`src: agent`), preserved in full. Review
 it, then keep whichever store you want as canonical.
 
+## What's in `.memory/` — and what writes where
+
+`init` lays out four things (plus `.gitattributes`):
+
+| Path | What lives here | Scope |
+|---|---|---|
+| `project.mem.md` | Decisions, facts, prefs about **this project** | project |
+| `user.mem.md` | Things about **you** that hold across projects | user |
+| `archive.mem.md` | Expired/superseded entries — cold, readable, recoverable | project |
+| `episodes/` | Optional session-log entries (`type: episode`, 30-day TTL) | episode |
+
+The store loads **every** `.mem.md` under `.memory/` (recursively) and merges them
+into one logical memory, so the file split is organizational — add your own
+`.mem.md` files if you like.
+
+Which file changes, when:
+
+- **`memory_remember`** appends a new entry to `project.mem.md`, or to
+  `user.mem.md` if the memory is user-scoped — routed **by scope, not by type**.
+- **`memory_forget`** appends a recoverable "tombstone" next to the target
+  (a soft-delete); nothing is erased.
+- **`memory_pin`** rewrites just that entry's load tier, in place.
+- **`memory_compact --write`** is the only thing that moves entries between files:
+  expired/superseded ones lift into `archive.mem.md`.
+- **`episodes/`** is created empty and is **not** auto-populated — it's for
+  hand-authored, migrated, or distilled session logs. An empty folder is normal.
+
+Every write is serialized (a lock) and atomic (temp file + rename), and it's all
+plain Markdown in git — so each change lands as a clean `git diff` you can review.
+
+**You vs. the agent, in one line:** *you* run the `mnemo` CLI (`init`, `list`,
+`show`, `doctor`, `compact`, `migrate`); the *agent* calls the `memory_*` tools
+(`recall`, `remember`, `forget`, `pin`, `review`, `compact`, `list`, `show`,
+`history`, `stats`, `boot`) when you ask in plain language. `remember` and friends
+have no CLI — you save memories by telling the agent, not by hand.
+
 ## 2. Make the agent use it
 
 **Easiest - the Claude Code plugin.** It bundles the MCP server, a skill that
