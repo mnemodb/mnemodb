@@ -49,7 +49,7 @@ test('the MCP server runs only the published, audited package', () => {
   const m = json(`${ROOT}.mcp.json`).mcpServers;
   assert.deepEqual(Object.keys(m), ['mnemodb']);
   assert.equal(m.mnemodb.command, 'npx');
-  assert.deepEqual(m.mnemodb.args, ['-y', '@mnemodb/mcp@0.1.10']);
+  assert.deepEqual(m.mnemodb.args, ['-y', '@mnemodb/mcp@0.1.11']);
 });
 
 test('the MCP server pins the store to the project dir (not the launch cwd)', () => {

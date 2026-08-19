@@ -3,7 +3,7 @@
 **A structured, portable, auditable memory format for AI agents — a database whose files you can read.**
 
 ```
-claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.10
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.11
 ```
 
 Repo, spec, and security audit: https://github.com/mnemodb/mnemodb
@@ -58,7 +58,7 @@ audit and trust what's in memory. **Overkill when** a short hand-curated
 
 ```bash
 npx @mnemodb/cli init                      # create a store (or migrate CLAUDE.md)
-claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.10   # give your agent the tools
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.11   # give your agent the tools
 npx @mnemodb/cli list                      # inspect anytime — it's just files
 ```
 

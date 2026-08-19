@@ -1,6 +1,6 @@
 {
   "name": "@mnemodb/core",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "MnemoDB core: parse, serialize, index, resolve, merge, and validate .mem.md agent memory stores. Zero runtime dependencies.",
   "license": "Apache-2.0",
   "author": "Ziv (zivuch)",

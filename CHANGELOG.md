@@ -6,6 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.11] — 2026-08-17
+
+`@mnemodb/mcp` now ships as a single **zero-dependency bundle**, so
+`npx @mnemodb/mcp` cold-starts in ~100ms instead of ~10s+.
+
+The slow part of `npx -y @mnemodb/mcp` was downloading the whole
+`@modelcontextprotocol/sdk` + `zod` + `@mnemodb/core` dependency tree on first
+launch — which exceeded Claude Code's MCP startup timeout (`MCP_TIMEOUT`) and
+left the plugin's server disconnected at session start, needing a manual
+reconnect. Bundling removes the download entirely.
+
+- The server (`bin: mnemo-mcp`) is esbuild-bundled with all dependencies inlined;
+  the published package has **no runtime `dependencies`** and ships only the
+  bundle (`dist/server.js`).
+- No behavior change — same 11 tools, same engine; packaging only.
+- New regression tests assert the package stays dependency-free and the bundle
+  runs standalone (no `node_modules`) through a real tool call.
+- `@mnemodb/mcp` is now published as a server binary only (`main`/`types`
+  removed); use `@mnemodb/core` for the engine as a library.
+
 ## [0.1.10] — 2026-08-17
 
 Security and correctness hardening from a full adversarial audit. 22 new
@@ -222,6 +242,7 @@ audit. Left published for history; not recommended for use.
   `memory_remember`, `memory_review`, `memory_compact`, `memory_boot`.
 - Conformance fixtures, including the project's own dogfood memory store.
 
+[0.1.11]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.11
 [0.1.10]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.10
 [0.1.9]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.9
 [0.1.8]: https://github.com/mnemodb/mnemodb/releases/tag/v0.1.8
