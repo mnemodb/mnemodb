@@ -170,6 +170,94 @@ npx @mnemodb/cli compact --write # archive expired/superseded entries
 Then review the git diff and commit. Nothing is deleted — superseded and expired
 memories move to `archive.mem.md`, so history is always recoverable.
 
+## Every tool, by example
+
+The table above is the reference; here's what a day of actually *using* them
+sounds like. You talk in plain language — the agent picks the tool.
+
+**Saving as you go** — `memory_remember`
+
+- "Remember that we use PostgreSQL LISTEN/NOTIFY for cache invalidation, not Redis."
+- "Save that the staging deploy runs on Node 22 via GitHub Actions."
+- "Remember, as a personal preference, that I want terse answers with the reasoning first." *(user-scoped → `user.mem.md`)*
+
+**Reading it back** — `memory_recall`, `memory_list`, `memory_boot`
+
+- "Before you start, recall anything we've decided about the database." → `memory_recall`
+- "What do you know about this project?" → `memory_list` (the whole index)
+- "Load your memory context for this session." → `memory_boot` (the always-pinned tier)
+
+**Going deeper on one memory** — `memory_show`, `memory_history`
+
+- "Show me the full cache-invalidation decision, with its metadata." → `memory_show`
+- "What's the history of that decision — what did it replace?" → `memory_history`
+
+**Curating** — `memory_pin`, `memory_forget`
+
+- "Pin the 'never deploy on Friday' rule so it loads every session." → `memory_pin` (tier: always)
+- "That note about the old REST API is obsolete — forget it." → `memory_forget` (archived, recoverable)
+
+**Health & housekeeping** — `memory_stats`, `memory_review`, `memory_compact`
+
+- "Give me stats on my memory — how big is the always-loaded tier?" → `memory_stats`
+- "Check my memory for stale or contradictory entries." → `memory_review`
+- "Compact my memory." → `memory_compact` (previews first; say "apply it" to write)
+
+One memory's whole life, end to end:
+
+> "Remember we chose Apache-2.0 for the code." → *later* → "Actually we're
+> dual-licensing — Apache-2.0 for code, CC BY 4.0 for the spec; update that."
+> (the agent supersedes the old entry, keeping its history) → "Pin that, it's
+> important." → *weeks later* → "What's the license history?" shows both
+> revisions, newest first.
+
+## Tips — getting the most out of it
+
+- **Remember deliberately, not everything.** MnemoDB is for durable, high-value
+  memory: decisions, project facts, preferences, hard-won insights. Skip the
+  transient ("the test is failing right now") — that's noise tomorrow. Curated
+  beats comprehensive; a store full of trivia buries the entries that matter.
+- **Pin only a handful to `always`.** The always-tier loads into *every* session,
+  so it competes with your real context budget. Reserve it for the two or three
+  rules the agent must never violate. Everything else stays `auto` (pulled in when
+  relevant) — the default, and usually right.
+- **Let things expire.** Give time-sensitive memories a `ttl` and durable ones a
+  `review` date, so the store self-prunes instead of rotting. `memory_review` (or
+  `mnemo doctor`) shows what's gone stale; `memory_compact` clears it out.
+- **Scope it right.** Project facts go to `project.mem.md` (default); things about
+  *you* that hold across projects ("I use Git Bash on Windows") are user-scoped —
+  say "remember, as a personal preference, that…".
+- **Commit `.memory/` with your code.** It's plain Markdown: the diff shows exactly
+  what the agent learned, and it travels with the repo for the whole team.
+
+## Troubleshooting
+
+**The MnemoDB MCP server won't connect / times out at startup.**
+Update the plugin (or your pin) to **`@mnemodb/mcp@0.1.11` or newer** — it ships
+as a single bundled file that cold-starts in ~2s instead of ~11s, which is what
+was exceeding Claude Code's MCP startup budget. On an older or manual setup you
+can instead raise the budget: set `MCP_TIMEOUT=30000` (milliseconds) in
+`~/.claude/settings.json` under `"env"`, or `npm i -g @mnemodb/mcp@<version>` so
+there's nothing to download. Then reconnect from `/mcp`.
+
+**I saved a memory but `mnemo list` shows nothing.**
+The server and the CLI are pointed at different stores. An MCP server's working
+directory isn't guaranteed to be your project root, so it may have written a
+`.memory/` elsewhere. The plugin pins `MNEMO_STORE=${CLAUDE_PROJECT_DIR}` to
+prevent this; for a manual `claude mcp add`, set `MNEMO_STORE=/path/to/project`
+in the server's env and run the CLI from the same directory (or
+`MNEMO_STORE=… npx @mnemodb/cli list`).
+
+**The agent doesn't recall on its own.**
+It won't reliably check memory unless told to. Add the Memory paragraph (§2) to
+your `CLAUDE.md` so every session starts by calling `memory_recall`. Until then,
+just ask: "recall what we know about X."
+
+**A recalled entry is marked `untrusted`.**
+Working as designed — it came from a tool or scraped source, not from you. The
+agent treats it as information, never instructions, and it can't be pinned to
+`always` or supersede something you wrote. Nothing to fix.
+
 ## A realistic first session
 
 1. `npx @mnemodb/cli init`
