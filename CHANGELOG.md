@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.12] — 2026-08-26
+
+**`memory_remember` now creates the `.memory/` store on first use instead of
+scattering a file into the project root.** This removes the manual
+`npx @mnemodb/cli init` step — the store folder is born the moment the agent
+saves its first memory.
+
+- **Fixed:** a first `memory_remember` in a project with no `.memory/` yet wrote
+  `project.mem.md` loose at the project root (next to `CLAUDE.md`) and never
+  created `.memory/`. Cause: store resolution fell back to the project dir when
+  no `.memory/` existed. Now a new core `resolveWriteDir()` maps a bare project
+  dir to `<dir>/.memory`, and `remember` creates and writes there (and locks on
+  the same dir every writer resolves to). Single-file and existing `.memory/`
+  stores are unchanged.
+- **Docs:** `init` is now documented as optional (scaffolding / migration), not a
+  required first step.
+- New regression tests: a first `remember` into a bare dir (project- and
+  user-scoped) must create `.memory/{project,user}.mem.md` and never a
+  root-level file.
+- If an older version already left a stray root-level `project.mem.md`, move it
+  in once: `mkdir -p .memory && mv project.mem.md .memory/`.
+
 ## [0.1.11] — 2026-08-17
 
 `@mnemodb/mcp` now ships as a single **zero-dependency bundle**, so

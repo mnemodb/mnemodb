@@ -5,9 +5,15 @@ Install gives your agent eleven memory tools. This is how you actually *use* the
 The short version: **you mostly don't — the agent does.** Your job is to seed a
 bit of memory, tell the agent to lean on it, and occasionally look at the files.
 
-## 1. Create a store (30 seconds)
+## 1. Create a store (zero steps, or 30 seconds)
 
-In your project directory:
+**You usually don't have to.** The store creates itself: the first time the agent
+saves a memory (say *"remember that we use pnpm, never npm"*), MnemoDB creates
+`.memory/` in your project and writes the entry there. No init, no restart — the
+folder just appears, and every later memory lands in it.
+
+Want it scaffolded up front — to commit an empty store, or set it up before you
+start — run, in your project directory:
 
 ```
 npx @mnemodb/cli init
@@ -15,6 +21,8 @@ npx @mnemodb/cli init
 
 That creates `.memory/` with `project.mem.md`, `user.mem.md`, and `archive.mem.md`,
 plus a `.gitattributes` for clean merges. Commit it to your repo like any config.
+(It's the same `.memory/` the first `remember` would have made — running it just
+means the folder exists before your first saved memory.)
 
 Already have a `CLAUDE.md`? Point at it instead — nothing is lost:
 
@@ -240,6 +248,15 @@ can instead raise the budget: set `MCP_TIMEOUT=30000` (milliseconds) in
 `~/.claude/settings.json` under `"env"`, or `npm i -g @mnemodb/mcp@<version>` so
 there's nothing to download. Then reconnect from `/mcp`.
 
+**No `.memory/` folder appeared after I saved a memory.**
+On **`@mnemodb/mcp@0.1.12` or newer** the store is created automatically on the
+first `memory_remember` — if nothing appeared, the tool didn't fire (ask
+explicitly: *"call memory_remember to save …"*) or the server is pointed at a
+different directory (see the next item). On **older versions** the first write
+could land as a loose `project.mem.md` at your project root instead of creating
+`.memory/`; fixed in 0.1.12. If you have such a stray file, move it in once:
+`mkdir -p .memory && mv project.mem.md .memory/`.
+
 **I saved a memory but `mnemo list` shows nothing.**
 The server and the CLI are pointed at different stores. An MCP server's working
 directory isn't guaranteed to be your project root, so it may have written a
@@ -260,11 +277,14 @@ agent treats it as information, never instructions, and it can't be pinned to
 
 ## A realistic first session
 
-1. `npx @mnemodb/cli init`
-2. `claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.11`
-3. Paste the Memory paragraph (§2B) into your `CLAUDE.md`.
-4. Work normally. When you decide something, say "remember that." Tomorrow, start a
-   fresh session and ask "what did we decide about X?" — that moment, where it
-   answers from memory you never re-explained, is the whole point.
-5. After a few days: `npx @mnemodb/cli list` and see whether what accumulated is
+1. Install the plugin (or `claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.11`).
+2. Paste the Memory paragraph (§2B) into your `CLAUDE.md`.
+3. Work normally. When you decide something, say "remember that." The `.memory/`
+   folder is created automatically on that first save — no init needed. Tomorrow,
+   start a fresh session and ask "what did we decide about X?" — that moment, where
+   it answers from memory you never re-explained, is the whole point.
+4. After a few days: `npx @mnemodb/cli list` and see whether what accumulated is
    actually useful. That's the feedback worth sending.
+
+(Prefer the folder to exist before you start? `npx @mnemodb/cli init` scaffolds it
+— optional.)
