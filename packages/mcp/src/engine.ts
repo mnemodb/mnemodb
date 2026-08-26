@@ -7,10 +7,10 @@
  * weighting engramdb validated in the field: relevance first, then
  * confidence/pin, then freshness.
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  loadStore, liveEntries, deriveIndex, supersededIds, parse, serialize,
+  loadStore, resolveWriteDir, liveEntries, deriveIndex, supersededIds, parse, serialize,
   appendEntry, generateId, writeFileAtomic, doctor, planCompaction,
   applyCompaction, isExpired, isStale, estimateTokens, withStoreLock,
   sanitizeStatement, trustRank, isUntrusted, canonicalSrc, MAX_BODY,
@@ -219,12 +219,17 @@ function similarity(a: string, b: string): number {
 }
 
 export function remember(storeDir: string, input: RememberInput): RememberResult {
-  // Serialize writers: concurrent unlocked writers lose updates (audit 2026-08-10).
-  const probeRoot = loadStore(storeDir).root;
-  return withStoreLock(probeRoot, () => rememberLocked(storeDir, input));
+  // Writes always target `.memory/`, creating it if absent — so the first
+  // remember never scatters a `project.mem.md` into the project root and the
+  // store folder is born without a manual `mnemo init` (store.ts:resolveWriteDir).
+  const writeRoot = resolveWriteDir(storeDir);
+  mkdirSync(writeRoot, { recursive: true });
+  // Lock on the same dir every writer (remember/forget/pin) uses, so mutual
+  // exclusion actually holds now that reads resolve to `.memory/` too.
+  return withStoreLock(writeRoot, () => rememberLocked(storeDir, writeRoot, input));
 }
 
-function rememberLocked(storeDir: string, input: RememberInput): RememberResult {
+function rememberLocked(storeDir: string, writeRoot: string, input: RememberInput): RememberResult {
   const store = loadStore(storeDir);
   const now = input.now ?? new Date();
   const scope: 'project' | 'user' = input.scope === 'user' ? 'user' : 'project';
@@ -256,7 +261,7 @@ function rememberLocked(storeDir: string, input: RememberInput): RememberResult 
   }
 
   const fileName = scope === 'user' ? 'user.mem.md' : 'project.mem.md';
-  const path = join(store.root, fileName);
+  const path = join(writeRoot, fileName);
   const source = existsSync(path)
     ? readFileSync(path, 'utf8')
     : `---\nmnemo: "0.1"\nscope: ${scope}\ntitle: "${scope} memory"\nupdated: ${now.toISOString().slice(0, 10)}\n---\n`;

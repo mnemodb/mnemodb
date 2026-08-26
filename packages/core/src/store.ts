@@ -4,7 +4,7 @@
  * tiers (§6.3) over the loaded documents.
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, basename } from 'node:path';
 import { parse } from './parse.js';
 import { isExpired } from './lifecycle.js';
 import { trustRank } from './sanitize.js';
@@ -34,6 +34,32 @@ export function loadStore(target: string): Store {
     }
   }
   return { root, docs: files.map((f) => parseFile(f, root)) };
+}
+
+/**
+ * Canonical directory a *write* (a new `.mem.md` file) must target for a given
+ * store location. Reads (`loadStore`) accept a bare project dir, a `.memory/`
+ * dir, or a single file — but a newly created file must always land inside
+ * `.memory/`, so writes never scatter into the project root.
+ *
+ * The bug this fixes (chicken-and-egg): `loadStore` falls back to `target`
+ * itself when no `.memory/` exists yet, so the very first `memory_remember`
+ * used to write `project.mem.md` loose at the project root and `.memory/` was
+ * never born — making `mnemo init` feel mandatory. This resolves a bare
+ * project dir to `<dir>/.memory` (the caller creates it), so the folder appears
+ * on the first write with no init step.
+ *
+ * - single-file store (`target` is a file) → returned unchanged (caller owns it)
+ * - `target` is already a `.memory` dir → returned unchanged
+ * - anything else (existing project dir, or a path yet to be created) → `<dir>/.memory`
+ */
+export function resolveWriteDir(target: string): string {
+  let st;
+  try { st = statSync(target); }
+  catch { return join(target, '.memory'); } // not created yet → treat as a project dir
+  if (st.isFile()) return target;             // single-file store: unchanged
+  if (basename(target) === '.memory') return target; // already the store dir
+  return join(target, '.memory');             // project dir → canonical .memory/
 }
 
 function parseFile(path: string, root: string): MemDoc {

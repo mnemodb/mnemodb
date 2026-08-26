@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, cpSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -52,6 +52,31 @@ test('remember creates a typed entry with agent provenance and finds it via reca
   assert.match(content, /src: agent/);
   const hits = recall(dir, 'github actions node ci', { now: NOW });
   assert.equal(hits[0].id, res.id);
+});
+
+test('first remember into a bare project dir creates .memory/ (never a root-level file)', () => {
+  // Regression: with no `.memory/` yet, the write used to fall back to the
+  // project root and drop `project.mem.md` next to the user's other files, so
+  // `.memory/` was never born. It must now create and write inside `.memory/`.
+  const dir = mkdtempSync(join(tmpdir(), 'bare-'));
+  const res = remember(dir, {
+    statement: 'We deploy staging on Node 22 via GitHub Actions',
+    type: 'fact', now: NOW,
+  });
+  assert.equal(res.status, 'created');
+  assert.ok(existsSync(join(dir, '.memory', 'project.mem.md')), '.memory/project.mem.md must exist');
+  assert.ok(!existsSync(join(dir, 'project.mem.md')), 'must NOT scatter a project.mem.md at the project root');
+  assert.match(readFileSync(join(dir, '.memory', 'project.mem.md'), 'utf8'), /Node 22 via GitHub Actions/);
+  // And it reads back through the same resolution.
+  const hits = recall(dir, 'staging deploy github actions node', { now: NOW });
+  assert.equal(hits[0].id, res.id);
+});
+
+test('user-scoped first remember also lands in .memory/user.mem.md', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bare-user-'));
+  remember(dir, { statement: 'I use Git Bash on Windows', type: 'pref', scope: 'user', now: NOW });
+  assert.ok(existsSync(join(dir, '.memory', 'user.mem.md')), '.memory/user.mem.md must exist');
+  assert.ok(!existsSync(join(dir, 'user.mem.md')), 'no root-level user.mem.md');
 });
 
 test('remember refuses near-duplicates', () => {
