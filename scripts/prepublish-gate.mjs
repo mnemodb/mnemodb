@@ -44,6 +44,25 @@ if (fresh) {
 }
 
 console.log('prepublish-gate: running the full suite before publishing…');
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-execFileSync(npm, ['test'], { cwd: REPO, stdio: 'inherit' });
+runNpmTest();
 writeFileSync(MARKER, new Date().toISOString());
+
+/**
+ * Run `npm test` in the repo root, cross-platform.
+ *
+ * Node >= 18.20.2 / 20.12.2 / 22 refuses to spawnSync a `.cmd` shim without a
+ * shell (the CVE-2024-27980 hardening), so `execFileSync('npm.cmd', ...)` dies
+ * with EINVAL on Windows. npm sets `npm_execpath` to its own JS entry point for
+ * lifecycle scripts, so the portable route is to run that with the node binary
+ * already executing us — no shim, no shell, no quoting rules. The shell
+ * fallback only matters if this is ever run outside an npm lifecycle.
+ */
+function runNpmTest() {
+  const cli = process.env.npm_execpath;
+  if (cli && cli.endsWith('.js')) {
+    execFileSync(process.execPath, [cli, 'test'], { cwd: REPO, stdio: 'inherit' });
+    return;
+  }
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  execFileSync(npm, ['test'], { cwd: REPO, stdio: 'inherit', shell: process.platform === 'win32' });
+}
