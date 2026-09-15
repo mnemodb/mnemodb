@@ -97,7 +97,7 @@ Restart Claude Code and you're set - skip to step 3.
 the server (once):
 
 ```
-claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.12
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.13
 ```
 
 Now the agent *can* recall and remember — but it won't do it reliably unless you
@@ -277,7 +277,7 @@ agent treats it as information, never instructions, and it can't be pinned to
 
 ## A realistic first session
 
-1. Install the plugin (or `claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.12`).
+1. Install the plugin (or `claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.13`).
 2. Paste the Memory paragraph (§2B) into your `CLAUDE.md`.
 3. Work normally. When you decide something, say "remember that." The `.memory/`
    folder is created automatically on that first save — no init needed. Tomorrow,

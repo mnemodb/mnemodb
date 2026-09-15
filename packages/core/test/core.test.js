@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  parse, serialize, mergeDocs, loadStore, deriveIndex, doctor,
+  parse, serialize, mergeDocs, loadStore, resolveWriteDir, deriveIndex, doctor,
   liveEntries, alwaysTier, isExpired, ttlDays, appendEntry, generateId,
 } from '../dist/index.js';
 
@@ -449,4 +449,26 @@ test('doctor flags a .mem.md left outside .memory/ (pre-0.1.12 layout)', () => {
     rep.diagnostics.some((d) => d.rule === 'legacy-root-store'),
     'doctor warns that a file sits outside .memory/',
   );
+});
+
+test('resolveWriteDir never nests a second .memory', () => {
+  // Regression: the name check used to run AFTER statSync, so a target pointing
+  // at a `.memory/` that did not exist yet fell into the "doesn't exist" branch
+  // and returned `<dir>/.memory/.memory`.
+  const dir = mkdtempSync(join(tmpdir(), 'rwd-'));
+  const dotMemory = join(dir, '.memory');
+
+  assert.equal(resolveWriteDir(dotMemory), dotMemory, '.memory that does not exist yet stays put');
+  mkdirSync(dotMemory);
+  assert.equal(resolveWriteDir(dotMemory), dotMemory, '.memory that exists stays put');
+  assert.equal(resolveWriteDir(dir), dotMemory, 'a project dir resolves to its .memory');
+
+  // A project dir that does not exist yet still resolves one level down, once.
+  const missing = join(dir, 'nested', 'project');
+  assert.equal(resolveWriteDir(missing), join(missing, '.memory'));
+
+  // A single file is left alone (single-file store).
+  const f = join(dir, 'CLAUDE.md');
+  writeFileSync(f, '# hi\n');
+  assert.equal(resolveWriteDir(f), f, 'a single-file store target is unchanged');
 });

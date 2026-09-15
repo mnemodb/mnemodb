@@ -6,6 +6,30 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.13] — 2026-09-15
+
+A follow-up to 0.1.12: one nesting bug in the new write-path resolution, found
+by verifying the published 0.1.12 packages rather than the source tree.
+
+- **Fixed:** a store path pointing at a `.memory/` directory that did not exist
+  yet resolved to a nested `<dir>/.memory/.memory`. `resolveWriteDir()` decided
+  "is this already the store dir?" *after* stat'ing the path, so a
+  not-yet-created `.memory` fell through to the "treat it as a project dir"
+  branch. The name is checked first now, so a `.memory` target is left alone
+  whether or not it exists.
+
+  Narrow in practice: it needed `MNEMO_STORE` aimed straight at a `.memory`
+  path before that directory existed. The plugin pins the project root and the
+  docs point at the project directory, so neither route was affected, and any
+  store that had been through `mnemo init` already resolved correctly.
+
+### Internal
+- `prepublishOnly` no longer re-runs the whole build and test suite once per
+  package. In CI it defers to the release workflow's explicit gate (which had
+  been running four redundant times); outside CI it runs the suite once per
+  publish sweep. It also no longer spawns `npm.cmd`, which Node refuses without
+  a shell since the CVE-2024-27980 hardening — that broke publishing on Windows.
+
 ## [0.1.12] — 2026-09-15
 
 **`memory_remember` now creates the `.memory/` store on first use instead of

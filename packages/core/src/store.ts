@@ -57,16 +57,20 @@ export function loadStore(target: string): Store {
  * project dir to `<dir>/.memory` (the caller creates it), so the folder appears
  * on the first write with no init step.
  *
+ * - `target` is already named `.memory` → returned unchanged (created or not)
  * - single-file store (`target` is a file) → returned unchanged (caller owns it)
- * - `target` is already a `.memory` dir → returned unchanged
  * - anything else (existing project dir, or a path yet to be created) → `<dir>/.memory`
  */
 export function resolveWriteDir(target: string): string {
+  // Check the name FIRST: a target already named `.memory` is the store dir
+  // whether or not it exists yet. Deciding this after the stat meant a path
+  // pointing at a not-yet-created `.memory/` fell through to the "doesn't
+  // exist" branch and nested a second one (`<dir>/.memory/.memory`).
+  if (basename(target) === '.memory') return target;
   let st;
   try { st = statSync(target); }
   catch { return join(target, '.memory'); } // not created yet → treat as a project dir
   if (st.isFile()) return target;             // single-file store: unchanged
-  if (basename(target) === '.memory') return target; // already the store dir
   return join(target, '.memory');             // project dir → canonical .memory/
 }
 
