@@ -25,6 +25,12 @@ so. That's how items move up.
   The MCP store is pinned to the project root, so writes can't scatter.
 - Native-memory import — `mnemo migrate <dir> --claude-memory` brings a Claude
   Code memory dir into typed `.mem.md` form.
+- Zero-dependency bundled MCP server — `@mnemodb/mcp` publishes as a single
+  esbuild bundle, so `npx @mnemodb/mcp` cold-starts in ~2s and connects within
+  Claude Code's MCP startup budget instead of timing out.
+- Store auto-creation — `.memory/` is created on the first `memory_remember`, so
+  a project needs no `init` step and a first write can never scatter a
+  `project.mem.md` into the project root.
 
 ## Likely next (v0.2 candidates)
 
@@ -42,6 +48,19 @@ Ordered by current guess at leverage; real use may reorder them.
 - **`doctor` / `list` polish** — distinguish damaged entries from
   superseded/expired in output; richer health summaries.
 - **Deterministic conformance fixtures** — fixed ids so the corpus is stable.
+- **Entry ownership (`owner:`)** — an optional `owner` field in the metadata span
+  (a person, a team, an agent id) naming who is accountable for a memory. Agent
+  context tends to fail less because the model is weak than because nobody owns
+  what the agent reads from — no owner, no contract, no metadata. With it,
+  `doctor` can flag high-stakes entries (decisions, policies) that have none.
+- **Blast-radius trace** — `mnemo trace --src <source>` lists every entry a given
+  provenance wrote, with a bulk `forget` for the set. Provenance is already on
+  every entry; this turns it from a static label into an incident response: when
+  one tool or agent session turns out to be compromised, you can see exactly what
+  it wrote and revoke it in one pass, auditably.
+- **Secret detection in `doctor`** — flag secret-shaped content (API keys, tokens,
+  `BEGIN … PRIVATE KEY` headers) at write-time and in `doctor`, plus skill
+  guidance to store policies, not secret values. (Audit follow-up.)
 
 ## Directions (later / exploratory)
 
@@ -62,6 +81,17 @@ Ordered by current guess at leverage; real use may reorder them.
   a knowledge-graph-lite layer.
 - **More convention importers** — CONTEXT.md vocabularies, learning-records, ADRs
   (spec Appendix C).
+- **Policy-as-code write guardrails** — a declarable store policy the engine
+  enforces at write time, generalizing secret detection from one rule into a rule
+  set: require an `owner` on `decision` entries, force a `ttl` on tool-sourced
+  ones, refuse PII-shaped content. The governance chain people otherwise walk by
+  hand — policy → SOP → rule → code — expressed as data sitting next to the
+  memories it governs, and reviewable in the same `git diff`.
+- **Governance reporting (`mnemo audit`)** — one command, one report over the
+  store: provenance distribution, share of untrusted content, entries past their
+  review date, retention compliance, ownership gaps. Built entirely from metadata
+  the format already carries — the artifact a data/AI governance owner asks for
+  when memory stops being one developer's file and starts being shared context.
 
 ## Post-1.0
 
