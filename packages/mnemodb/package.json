@@ -36,6 +36,6 @@
     "node": ">=18"
   },
   "scripts": {
-    "prepublishOnly": "cd ../.. && npm test"
+    "prepublishOnly": "node ../../scripts/prepublish-gate.mjs"
   }
 }

@@ -24,7 +24,7 @@
     "access": "public"
   },
   "scripts": {
-    "prepublishOnly": "cd ../.. && npm test"
+    "prepublishOnly": "node ../../scripts/prepublish-gate.mjs"
   },
   "devDependencies": {
     "@mnemodb/core": "0.1.12",
