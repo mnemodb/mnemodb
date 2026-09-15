@@ -25,8 +25,16 @@ export function loadStore(target: string): Store {
     return { root: target, docs: [parseFile(target, target)] };
   }
   const memoryDir = join(target, '.memory');
-  const root = existsSync(memoryDir) ? memoryDir : target;
+  const hasMemoryDir = existsSync(memoryDir);
+  const root = hasMemoryDir ? memoryDir : target;
   const files = walk(root).filter((f) => MEM_FILE_RE.test(f));
+  // A store scattered by <= 0.1.11 left `*.mem.md` at the PROJECT ROOT instead
+  // of inside `.memory/`. Once `.memory/` exists those files would stop being
+  // loaded, silently hiding memories the user already had — so keep reading
+  // them. Their `doc.path` resolves as `../name.mem.md`, so `forget`/`pin`
+  // still write back to the original file, and `doctor` flags them to be
+  // consolidated into `.memory/`.
+  if (hasMemoryDir) files.push(...legacyRootFiles(target));
   if (files.length === 0) {
     for (const name of FALLBACK_FILES) {
       const p = join(target, name);
@@ -60,6 +68,24 @@ export function resolveWriteDir(target: string): string {
   if (st.isFile()) return target;             // single-file store: unchanged
   if (basename(target) === '.memory') return target; // already the store dir
   return join(target, '.memory');             // project dir → canonical .memory/
+}
+
+/**
+ * Top-level `*.mem.md` files sitting BESIDE a `.memory/` dir — the layout a
+ * pre-0.1.12 store was left in when the first write scattered into the project
+ * root. Only the target's own directory is scanned (never recursively), so an
+ * unrelated `.mem.md` deeper in the repo is not swept into the store.
+ */
+function legacyRootFiles(target: string): string[] {
+  const out: string[] = [];
+  let names: string[];
+  try { names = readdirSync(target); } catch { return out; }
+  for (const name of names) {
+    if (!MEM_FILE_RE.test(name)) continue;
+    const p = join(target, name);
+    try { if (statSync(p).isFile()) out.push(p); } catch { /* vanished */ }
+  }
+  return out.sort();
 }
 
 function parseFile(path: string, root: string): MemDoc {

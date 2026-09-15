@@ -49,7 +49,13 @@ test('the MCP server runs only the published, audited package', () => {
   const m = json(`${ROOT}.mcp.json`).mcpServers;
   assert.deepEqual(Object.keys(m), ['mnemodb']);
   assert.equal(m.mnemodb.command, 'npx');
-  assert.deepEqual(m.mnemodb.args, ['-y', '@mnemodb/mcp@0.1.11']);
+  // The pin must track the plugin's OWN version and stay exact — a range or
+  // `@latest` would let an unaudited build run on a user's machine. Deriving it
+  // from the manifest also stops the two drifting apart at release time (this
+  // assertion used to hardcode the version and broke on every bump).
+  const { version } = json(`${ROOT}.claude-plugin/plugin.json`);
+  assert.match(version, /^\d+\.\d+\.\d+$/, 'plugin version must be exact semver');
+  assert.deepEqual(m.mnemodb.args, ['-y', `@mnemodb/mcp@${version}`]);
 });
 
 test('the MCP server pins the store to the project dir (not the launch cwd)', () => {

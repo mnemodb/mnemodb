@@ -5,7 +5,7 @@
 **A structured, portable, auditable memory format for AI agents — a database whose files you can read.**
 
 ```
-claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.11
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.12
 ```
 
 ---
@@ -90,7 +90,7 @@ is optional and does that.
 
 ```
 # 1. give your agent the memory tools (restart Claude Code after)
-claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.11
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.12
 
 # 2. tell the agent to use them — add this to CLAUDE.md:
 #    "At the start of a task, call memory_recall. When we decide something

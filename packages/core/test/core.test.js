@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -428,4 +429,24 @@ test('doctor flags a ttl with no date anchor (audit LOW)', () => {
   const doc = parse('## fact: x\n`mnemo aa01 | ttl: 30d`\n'); // ttl but no updated / no date in src
   const store = { root: '.', docs: [doc] };
   assert.ok(doctor(store).diagnostics.some((d) => d.rule === 'ttl-no-anchor'), 'ttl-without-anchor flagged');
+});
+
+test('doctor flags a .mem.md left outside .memory/ (pre-0.1.12 layout)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'legacy-doc-'));
+  mkdirSync(join(dir, '.memory'));
+  writeFileSync(join(dir, '.memory', 'project.mem.md'),
+    '---\nmnemo: "0.1"\nscope: project\n---\n\n## note: inside the store\n`mnemo bbbb | src: user`\n');
+  writeFileSync(join(dir, 'project.mem.md'),
+    '---\nmnemo: "0.1"\nscope: project\n---\n\n## note: scattered at the project root\n`mnemo aaaa | src: user`\n');
+
+  const store = loadStore(dir);
+  const ids = store.docs.flatMap((d) => d.entries.map((e) => e.meta.id));
+  assert.ok(ids.includes('aaaa'), 'the scattered root file still loads');
+  assert.ok(ids.includes('bbbb'), 'the in-store file loads');
+
+  const rep = doctor(store);
+  assert.ok(
+    rep.diagnostics.some((d) => d.rule === 'legacy-root-store'),
+    'doctor warns that a file sits outside .memory/',
+  );
 });

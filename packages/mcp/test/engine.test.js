@@ -4,7 +4,7 @@ import { mkdtempSync, cpSync, readFileSync, mkdirSync, writeFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { recall, remember, review, compact, bootContext, history } from '../dist/engine.js';
+import { recall, remember, list, review, compact, bootContext, history } from '../dist/engine.js';
 
 const DOGFOOD = fileURLToPath(new URL('../../../fixtures/dogfood', import.meta.url));
 const NOW = new Date('2026-08-10T12:00:00Z');
@@ -77,6 +77,39 @@ test('user-scoped first remember also lands in .memory/user.mem.md', () => {
   remember(dir, { statement: 'I use Git Bash on Windows', type: 'pref', scope: 'user', now: NOW });
   assert.ok(existsSync(join(dir, '.memory', 'user.mem.md')), '.memory/user.mem.md must exist');
   assert.ok(!existsSync(join(dir, 'user.mem.md')), 'no root-level user.mem.md');
+});
+
+test('a pre-0.1.12 scattered store keeps loading after .memory/ is created', () => {
+  // Regression: creating .memory/ made loadStore switch to it and silently stop
+  // loading the root-level project.mem.md an older version had scattered there,
+  // so the user's existing memories vanished from list/recall on first write.
+  const dir = mkdtempSync(join(tmpdir(), 'legacy-'));
+  writeFileSync(join(dir, 'project.mem.md'),
+    '---\nmnemo: "0.1"\nscope: project\n---\n\n'
+    + '## decision: We chose PostgreSQL over Redis for cache invalidation\n'
+    + '`mnemo aaaa | src: user | conf: high`\n\nPrior memory.\n');
+  assert.deepEqual(list(dir).map((e) => e.id), ['aaaa'], 'legacy entry loads before the upgrade');
+
+  const res = remember(dir, { statement: 'brand new memory about deployment pipelines', now: NOW });
+  assert.equal(res.status, 'created');
+  assert.ok(existsSync(join(dir, '.memory', 'project.mem.md')), 'new write lands in .memory/');
+
+  const after = list(dir).map((e) => e.id);
+  assert.ok(after.includes('aaaa'), 'legacy root entry must STILL load after .memory/ exists');
+  assert.ok(after.includes(res.id), 'new entry loads too');
+  assert.ok(recall(dir, 'postgresql redis cache invalidation', { now: NOW }).length > 0,
+    'legacy entry must still be recallable');
+});
+
+test('remember refuses a single-file store with a clear message', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'singlefile-'));
+  const f = join(dir, 'CLAUDE.md');
+  writeFileSync(f, '# Project\n\nPreamble.\n');
+  assert.throws(
+    () => remember(f, { statement: 'should not be written anywhere', now: NOW }),
+    /single-file stores are read-only for writes/,
+    'must not surface a raw EEXIST mkdir error',
+  );
 });
 
 test('remember refuses near-duplicates', () => {

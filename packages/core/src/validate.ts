@@ -42,6 +42,14 @@ export function doctor(store: Store, now: Date = new Date()): DoctorReport {
     const at = (line: number, level: 'error' | 'warn', rule: string, message: string) =>
       diagnostics.push({ level, line, rule, message: `${file}: ${message}` });
 
+    // A doc whose path escapes the store root is a pre-0.1.12 scattered file
+    // sitting beside `.memory/` rather than inside it. It still loads, but the
+    // layout is wrong and should be consolidated.
+    if (file.startsWith('..')) {
+      at(1, 'warn', 'legacy-root-store',
+        'lives outside .memory/ (pre-0.1.12 layout) — consolidate it: mkdir -p .memory && mv the file into .memory/');
+    }
+
     // Parse-time diagnostics carry through.
     for (const d of doc.diagnostics) {
       diagnostics.push({ ...d, message: `${file}: ${d.message}` });

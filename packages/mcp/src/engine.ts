@@ -7,7 +7,7 @@
  * weighting engramdb validated in the field: relevance first, then
  * confidence/pin, then freshness.
  */
-import { readFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   loadStore, resolveWriteDir, liveEntries, deriveIndex, supersededIds, parse, serialize,
@@ -223,6 +223,14 @@ export function remember(storeDir: string, input: RememberInput): RememberResult
   // remember never scatters a `project.mem.md` into the project root and the
   // store folder is born without a manual `mnemo init` (store.ts:resolveWriteDir).
   const writeRoot = resolveWriteDir(storeDir);
+  // `resolveWriteDir` hands back the target itself for a single-file store:
+  // there is no directory to create and no place to put a new `.mem.md`. Say so
+  // plainly instead of surfacing a raw `EEXIST ... mkdir` from below.
+  if (writeRoot === storeDir && existsSync(storeDir) && statSync(storeDir).isFile()) {
+    throw new Error(
+      'memory_remember: the store path points at a file; single-file stores are read-only for writes \u2014 point MNEMO_STORE at the project directory instead',
+    );
+  }
   mkdirSync(writeRoot, { recursive: true });
   // Lock on the same dir every writer (remember/forget/pin) uses, so mutual
   // exclusion actually holds now that reads resolve to `.memory/` too.

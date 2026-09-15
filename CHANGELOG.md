@@ -6,7 +6,7 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
-## [0.1.12] — 2026-08-26
+## [0.1.12] — 2026-09-15
 
 **`memory_remember` now creates the `.memory/` store on first use instead of
 scattering a file into the project root.** This removes the manual
@@ -20,13 +20,22 @@ saves its first memory.
   dir to `<dir>/.memory`, and `remember` creates and writes there (and locks on
   the same dir every writer resolves to). Single-file and existing `.memory/`
   stores are unchanged.
-- **Docs:** `init` is now documented as optional (scaffolding / migration), not a
-  required first step.
-- New regression tests: a first `remember` into a bare dir (project- and
-  user-scoped) must create `.memory/{project,user}.mem.md` and never a
-  root-level file.
-- If an older version already left a stray root-level `project.mem.md`, move it
-  in once: `mkdir -p .memory && mv project.mem.md .memory/`.
+- **Fixed:** upgrading a store an older version had scattered no longer hides
+  memories. Creating `.memory/` used to make the loader switch to it and
+  silently stop reading the `*.mem.md` sitting at the project root, so existing
+  entries disappeared from `list` and `recall` on the very first write. Those
+  files keep loading (and `forget` / `pin` still write back into them), and
+  `doctor` now reports a `legacy-root-store` warning telling you to consolidate
+  them into `.memory/`.
+- **Fixed:** pointing the store at a single file now fails with a clear message
+  instead of a raw `EEXIST … mkdir` surfacing from underneath.
+- **Security:** refreshed the dependency lockfile. The published bundle no
+  longer carries a vulnerable `fast-uri`, which is reachable through the MCP
+  SDK's default Ajv validator rather than dead code as previously assumed.
+  Lockfile only — no manifest or SDK version changes.
+- **Docs:** `init` is documented as optional (scaffolding / migration) rather
+  than a required first step.
+- New regression tests for each fix; the suite is 99 green.
 
 ## [0.1.11] — 2026-08-17
 
