@@ -6,6 +6,34 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.14] — 2026-09-15
+
+**"Remember this" now actually saves something.** Asked plainly to remember
+a fact, the agent would often reply "got it, I'll remember that" and never call
+`memory_remember` — so nothing was stored, no `.memory/` appeared, and the next
+session knew nothing about it. The tools worked; the agent just had to be told
+to name them.
+
+- The `agent-memory` skill now states that a direct request **is** the decision:
+  when the user says "remember this", "save that", "note that", "don't forget"
+  or similar, call `memory_remember` immediately rather than re-weighing whether
+  the item is durable enough. The durability test still governs saves the agent
+  makes on its own initiative.
+- Both the skill and the session-start hook now say outright that answering
+  "I'll remember that" without calling the tool stores nothing — the failure
+  that makes memory worthless.
+- Reads get the same treatment: "what do you know about X", "check your memory"
+  and "recall …" mean query the store before answering, not answer from
+  whatever is in the current conversation.
+- The skill's description carries the literal trigger phrases, since that
+  description is what skill selection matches against.
+- Corrected stale guidance telling the agent a missing store meant memory was
+  not set up. Since 0.1.12 the first `memory_remember` creates `.memory/` on its
+  own, so there is no init step to run first.
+
+No library changes — `@mnemodb/core`, `@mnemodb/cli` and `@mnemodb/mcp` are
+byte-identical to 0.1.13 in behavior; the packages move together by convention.
+
 ## [0.1.13] — 2026-09-15
 
 A follow-up to 0.1.12: one nesting bug in the new write-path resolution, found

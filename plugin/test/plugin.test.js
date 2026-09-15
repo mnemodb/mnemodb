@@ -83,6 +83,25 @@ test('the skill and hook position MnemoDB for durable memory, not as a native-me
   }
 });
 
+test('both surfaces tell the model an explicit request is itself the decision', () => {
+  // The bug this guards: asked plainly to "remember this", the model answered
+  // conversationally and never called memory_remember — so nothing was stored
+  // and no .memory/ appeared. Acknowledging instead of saving is the one
+  // failure that makes memory worthless, so both surfaces must say so.
+  const skill = read(`${ROOT}skills/agent-memory/SKILL.md`);
+  const hook = read(`${ROOT}scripts/session-start.sh`);
+  for (const [name, txt] of [['skill', skill], ['hook', hook]]) {
+    assert.match(txt, /directly asks/i, `${name} must cover a direct request to remember`);
+    assert.match(txt, /stores nothing|without calling the tool/i,
+      `${name} must warn that acknowledging without calling the tool saves nothing`);
+  }
+  // The skill carries the literal phrasings users actually type, and its
+  // description is what skill selection matches on.
+  assert.match(skill, /"remember this"/, 'skill must name the literal trigger phrase');
+  const desc = skill.split('\n').find((l) => l.startsWith('description:'));
+  assert.ok(desc && /remember this/i.test(desc), 'description must carry the trigger phrase');
+});
+
 test('SECURITY: the session-start hook script contains no dangerous operations', () => {
   const script = read(`${ROOT}scripts/session-start.sh`);
   // No network, eval, writes, deletes, subshells, or reads from input.
