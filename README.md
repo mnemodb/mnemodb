@@ -49,6 +49,12 @@ file doesn't:
   page) is flagged `untrusted` and can never supersede a human instruction, so a
   poisoned memory can't hijack future sessions. This matters precisely *because*
   agents write memory automatically.
+- **Containment when something does go wrong.** Because provenance is on every
+  entry, `mnemo trace tool` (or `mnemo trace tool/session-abc`) lists exactly
+  what one source put in your memory — the question a provenance-free folder
+  can't answer at all. An optional `owner:` records who is *accountable* for a
+  memory, as distinct from where it came from; `doctor` flags decisions without
+  one, but only once a store actually uses owners.
 - **Portability.** The same files work across Claude Code, Cursor, and any MCP
   client. Your agent's accumulated knowledge isn't locked to one vendor or tool.
 - **Auditability.** It's readable Markdown in your git repo. `git diff` shows
