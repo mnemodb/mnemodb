@@ -102,6 +102,14 @@ test('both surfaces tell the model an explicit request is itself the decision', 
   assert.ok(desc && /remember this/i.test(desc), 'description must carry the trigger phrase');
 });
 
+test('the skill teaches owner: and points at trace, without inventing owners', () => {
+  const skill = read(`${ROOT}skills/agent-memory/SKILL.md`);
+  assert.match(skill, /owner/i, 'skill must cover the owner field');
+  assert.match(skill, /Do not invent one/i,
+    'skill must tell the model NOT to guess an owner (a wrong owner is worse than none)');
+  assert.match(skill, /mnemo trace/, 'skill must name the trace command for the user to run');
+});
+
 test('SECURITY: the session-start hook script contains no dangerous operations', () => {
   const script = read(`${ROOT}scripts/session-start.sh`);
   // No network, eval, writes, deletes, subshells, or reads from input.

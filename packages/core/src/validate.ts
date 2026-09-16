@@ -5,7 +5,8 @@
  */
 import { REGISTERED_TYPES } from './types.js';
 import { ttlDays, isExpired, isStale, hasAnchor } from './lifecycle.js';
-import { alwaysTier, supersededIds, forgedSupersedes } from './store.js';
+import { alwaysTier, supersededIds, forgedSupersedes, liveEntries } from './store.js';
+import { canonicalSrc } from './sanitize.js';
 import type { Store } from './store.js';
 import type { Diagnostic } from './types.js';
 
@@ -22,6 +23,12 @@ export interface DoctorReport {
     stale: number;
     alwaysTierTokens: number;
     budget: number | null;
+    /**
+     * Live entries whose provenance is tool-derived. Not a problem in itself —
+     * it is the number that makes `mnemo trace tool` worth reaching for, so
+     * surfaces can point at it instead of waiting to be discovered.
+     */
+    toolSourced: number;
   };
 }
 
@@ -164,6 +171,7 @@ export function doctor(store: Store, now: Date = new Date()): DoctorReport {
     diagnostics,
     stats: {
       files: store.docs.length, entries, live: Math.max(live, 0),
+      toolSourced: liveEntries(store, now).filter((l) => canonicalSrc(l.entry.meta.src) === 'tool').length,
       expired, stale, alwaysTierTokens, budget,
     },
   };

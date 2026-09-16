@@ -533,3 +533,12 @@ test('traceSource reports the blast radius of one provenance', () => {
 
   assert.equal(traceSource(store, 'no-such-source').matched, 0, 'unknown source is empty');
 });
+
+test('doctor counts live tool-sourced entries so surfaces can point at trace', () => {
+  const rep = doctor(loadStore(DOGFOOD));
+  assert.equal(typeof rep.stats.toolSourced, 'number');
+  assert.ok(rep.stats.toolSourced > 0, 'the dogfood store has live tool-sourced entries');
+  const traced = traceSource(loadStore(DOGFOOD), 'tool');
+  assert.equal(rep.stats.toolSourced, traced.live,
+    'the count doctor reports is exactly what `mnemo trace tool` would show as live');
+});

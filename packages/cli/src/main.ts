@@ -107,6 +107,15 @@ function cmdDoctor(dir: string): number {
   for (const d of errors) console.log(`  ERROR ${d.rule}: ${d.message}`);
   for (const d of warns) console.log(`  warn  ${d.rule}: ${d.message}`);
   if (errors.length === 0 && warns.length === 0) console.log('No problems found.');
+  // Tool-sourced content is not a fault, but it is the thing worth reviewing
+  // after anything looks off — name the command rather than hope it is found.
+  if (stats.toolSourced > 0) {
+    const n = stats.toolSourced;
+    console.log(
+      `\n${n} live ${n === 1 ? 'entry' : 'entries'} came from tool sources (untrusted). ` +
+      `Run \`mnemo trace tool\` to see what they wrote.`,
+    );
+  }
   return errors.length > 0 ? 1 : 0;
 }
 

@@ -320,6 +320,8 @@ function rememberLocked(storeDir: string, writeRoot: string, input: RememberInpu
 export interface ReviewReport {
   stale: { id: string | null; statement: string; review?: string }[];
   contradictions: string[];
+  /** Live tool-sourced (untrusted) entries, and how to review them. */
+  untrusted: { count: number; hint?: string };
   errors: string[];
   expiredCount: number;
   alwaysTierTokens: number;
@@ -335,8 +337,15 @@ export function review(storeDir: string, now: Date = new Date()): ReviewReport {
       staleEntries.push({ id: entry.meta.id ?? null, statement: entry.statement, review: entry.meta.review });
     }
   }
+  const toolSourced = report.stats.toolSourced;
   return {
     stale: staleEntries,
+    untrusted: {
+      count: toolSourced,
+      ...(toolSourced > 0
+        ? { hint: `${toolSourced} live entr${toolSourced === 1 ? 'y' : 'ies'} came from tool sources. Review what one source wrote with \`mnemo trace tool\` (or \`mnemo trace tool/<session>\`).` }
+        : {}),
+    },
     contradictions: report.diagnostics.filter((d) => d.rule === 'contradiction').map((d) => d.message),
     errors: report.diagnostics.filter((d) => d.level === 'error' && d.rule !== 'contradiction').map((d) => `${d.rule}: ${d.message}`),
     expiredCount: report.stats.expired,

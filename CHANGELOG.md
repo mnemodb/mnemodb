@@ -6,6 +6,26 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.16] — 2026-09-16
+
+Finishes 0.1.15. Both features worked; neither taught itself.
+
+- **The skill now covers `owner:`** — including when *not* to set it. 0.1.15
+  added the field to the format, the engine and the `memory_remember` schema but
+  never told the agent it existed, so in practice it would only ever have been
+  set by a user who named the parameter. The skill now says to use what the user
+  actually said ("owned by the platform team" → `platform-team`) and to leave it
+  off rather than guess — a wrong owner is worse than none, because it points at
+  the wrong person during a review. On a solo project it stays off.
+- **`doctor` and `memory_review` point at the trace.** Both now report how many
+  live entries came from tool sources and name `mnemo trace tool`, so the command
+  surfaces at the moment something looks off instead of waiting to be found in
+  the docs. Silent when a store has no tool-sourced entries.
+- The skill also tells the agent to *relay* that command rather than try to call
+  it — `trace` is a CLI command for the user, not one of the memory tools.
+- `doctor`'s stats gained `toolSourced`: the count of live tool-sourced entries,
+  which is exactly what `mnemo trace tool` reports as live.
+
 ## [0.1.15] — 2026-09-16
 
 Two additions that make provenance do real work, plus CI maintenance.
