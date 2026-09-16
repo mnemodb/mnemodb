@@ -1,6 +1,6 @@
 {
   "name": "@mnemodb/mcp",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "MnemoDB memory engine as an MCP server: memory_recall, memory_remember, memory_review, memory_compact over human-readable .mem.md stores.",
   "license": "Apache-2.0",
   "author": "Ziv (zivuch)",
@@ -27,7 +27,7 @@
     "prepublishOnly": "node ../../scripts/prepublish-gate.mjs"
   },
   "devDependencies": {
-    "@mnemodb/core": "0.1.16",
+    "@mnemodb/core": "0.1.17",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "zod": "^3.23.0",
     "esbuild": "^0.28.2"

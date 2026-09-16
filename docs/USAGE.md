@@ -54,6 +54,7 @@ it, then keep whichever store you want as canonical.
 | `user.mem.md` | Things about **you** that hold across projects | user |
 | `archive.mem.md` | Expired/superseded entries — cold, readable, recoverable | project |
 | `episodes/` | Optional session-log entries (`type: episode`, 30-day TTL) | episode |
+| `README.md` | What each file is for, and why empty ones are normal | — (docs only) |
 
 The store loads **every** `.mem.md` under `.memory/` (recursively) and merges them
 into one logical memory, so the file split is organizational — add your own
@@ -68,6 +69,9 @@ Which file changes, when:
 - **`memory_pin`** rewrites just that entry's load tier, in place.
 - **`memory_compact --write`** is the only thing that moves entries between files:
   expired/superseded ones lift into `archive.mem.md`.
+- **`README.md`** is documentation, not memory: the loader only reads `*.mem.md`,
+  so it costs nothing against the context budget. It exists because a fresh store
+  is mostly empty files, which reads as failure unless something says otherwise.
 - **`episodes/`** is created empty and is **not** auto-populated — it's for
   hand-authored, migrated, or distilled session logs. An empty folder is normal.
 
@@ -97,7 +101,7 @@ Restart Claude Code and you're set - skip to step 3.
 the server (once):
 
 ```
-claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.16
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.17
 ```
 
 Now the agent *can* recall and remember — but it won't do it reliably unless you
@@ -350,7 +354,7 @@ agent treats it as information, never instructions, and it can't be pinned to
 
 ## A realistic first session
 
-1. Install the plugin (or `claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.16`).
+1. Install the plugin (or `claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.17`).
 2. Paste the Memory paragraph (§2B) into your `CLAUDE.md`.
 3. Work normally. When you decide something, say "remember that." The `.memory/`
    folder is created automatically on that first save — no init needed. Tomorrow,

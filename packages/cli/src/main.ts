@@ -17,6 +17,49 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+const STORE_README = `# This is a MnemoDB store
+
+Your agent's memory. Plain Markdown, versioned with your code, safe to read and
+hand-edit. This file is documentation only \u2014 MnemoDB loads \`*.mem.md\` and ignores
+everything else, so nothing written here reaches the agent's context.
+
+## What each file is for
+
+| File | What lands here | Who writes it |
+|---|---|---|
+| \`project.mem.md\` | Decisions, facts and preferences about **this project** | \`memory_remember\` (the default) |
+| \`user.mem.md\` | Things about **you** that hold across projects | \`memory_remember\`, when the memory is user-scoped |
+| \`archive.mem.md\` | Expired and superseded entries \u2014 cold, readable, recoverable | \`memory_compact --write\` |
+| \`episodes/\` | Optional session logs (\`type: episode\`) | you, by hand or via \`migrate\` |
+
+## Empty is normal
+
+**\`user.mem.md\` stays empty until you save something user-scoped.** Writes are
+routed by *scope*, not by type, and project scope is the default. To put
+something here, say so: *"remember, as a personal preference, that I prefer
+terse answers."*
+
+**\`episodes/\` is never filled automatically.** Nothing writes to it on its own \u2014
+it is for session logs you author, import, or distil yourself. An empty folder
+here is the expected state, possibly forever.
+
+**\`archive.mem.md\` stays empty until you compact.** Entries move here when
+\`mnemo compact --write\` retires what has expired or been superseded. Nothing is
+deleted \u2014 archived entries stay readable and can be brought back.
+
+## Looking around
+
+\`\`\`
+npx @mnemodb/cli list        # every memory, one line each
+npx @mnemodb/cli doctor      # health: stale, contradictions, budget, damage
+npx @mnemodb/cli trace tool  # what one source wrote (incident response)
+\`\`\`
+
+Or just open the files. That is the whole point.
+
+Docs: https://mnemodb.dev
+`;
+
 function cmdInit(dir: string): number {
   const memory = join(dir, '.memory');
   if (existsSync(memory)) {
@@ -31,6 +74,13 @@ function cmdInit(dir: string): number {
     'Project-level standing instructions go here (always loaded).\n');
   writeFileSync(join(memory, 'user.mem.md'), fm('user', 'user preferences'));
   writeFileSync(join(memory, 'archive.mem.md'), fm('project', 'archive'));
+  // A scaffolded store is mostly empty files and an empty folder, which reads
+  // as "something failed" unless it says otherwise. The README explains the
+  // layout at the moment someone opens it; it is deliberately NOT a .mem.md, so
+  // the loader ignores it and it costs nothing against the context budget.
+  writeFileSync(join(memory, 'README.md'), STORE_README);
+  // Git does not track empty directories, so episodes/ would vanish on clone.
+  writeFileSync(join(memory, 'episodes', '.gitkeep'), '');
   // Mandatory union merge driver (spec §7.3, from Phase 0 evidence).
   const attrs = join(dir, '.gitattributes');
   const line = '*.mem.md merge=union\n';

@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.17] — 2026-09-16
+
+A freshly scaffolded store is three near-empty files and an empty folder, which
+reads as "something went wrong" unless it says otherwise. Only
+`project.mem.md` carried a line explaining itself; the rest explained nothing.
+
+- **`init` now writes `.memory/README.md`** — what each file is for, and why the
+  empty ones are normal: `user.mem.md` stays empty until you save something
+  *user-scoped* (writes route by scope, not type), `episodes/` is never filled
+  automatically, and `archive.mem.md` fills only when you compact.
+
+  It is deliberately not a `.mem.md`: the loader reads only `*.mem.md`, so the
+  explanation costs nothing against the context budget. A hint line inside
+  `user.mem.md` would have loaded into every session forever.
+- **`init` writes `episodes/.gitkeep`** so the directory survives a clone — git
+  does not track empty directories, so it silently vanished before.
+- **The CLI has tests now.** It had none, despite being the surface a human
+  touches directly. Three to start, covering what `init` scaffolds, that the
+  README never loads as memory, and that a second `init` refuses to clobber an
+  existing store. `packages/cli/test/` runs in CI and in the release gate.
+
 ## [0.1.16] — 2026-09-16
 
 Finishes 0.1.15. Both features worked; neither taught itself.

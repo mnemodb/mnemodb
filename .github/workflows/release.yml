@@ -27,7 +27,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test packages/core/test/*.test.js packages/mcp/test/*.test.js plugin/test/*.test.js
+      - run: node --test packages/core/test/*.test.js packages/cli/test/*.test.js packages/mcp/test/*.test.js plugin/test/*.test.js
       - name: Security gate (adversarial suite must pass before publish)
         run: node --test packages/mcp/test/security.test.js
       # Publish in dependency order: core first, meta package last.
