@@ -240,6 +240,48 @@ One memory's whole life, end to end:
 
 ## Troubleshooting
 
+**The plugin isn't listed in `/plugin`, and `/mcp` shows no mnemodb.**
+Almost always it is *disabled*, not missing — and reinstalling will not fix it,
+because installing does not override an explicit `false`. Claude Code records
+plugin enablement under `enabledPlugins` in its settings, so check every scope:
+
+```
+grep -rn "enabledPlugins" -A3 ~/.claude/settings.json .claude/settings.json .claude/settings.local.json
+```
+
+If you see `"mnemodb@mnemodb": false`, change it to `true`. Put it in
+`~/.claude/settings.json` (user scope) so memory is on in **every** project —
+enablement is per-scope, so enabling it inside one project does not carry to the
+next folder you open. Then restart Claude Code (see below). `/plugin` also has an
+**Errors** tab, which is where load failures surface if the entry looks right.
+
+**The plugin still runs the old version after an update.**
+The marketplace is a local git clone, and `/plugin update` installs from *that*
+clone — so if the clone is stale, updating just reinstalls the old version.
+Refresh the source first:
+
+```
+/plugin marketplace update mnemodb
+/plugin update mnemodb@mnemodb
+```
+
+Check which version is actually installed:
+
+```
+find ~/.claude/plugins -path "*mnemodb*" -name "plugin.json" -exec grep -H '"version"' {} \;
+```
+
+Both the `cache/…/<version>/` and `marketplaces/mnemodb/plugin/` paths should show
+the version you expect. Older cached versions are kept for a grace period and are
+harmless.
+
+**I enabled or updated the plugin but the MCP server still isn't connected.**
+`/reload-plugins` reloads skills and hooks, but it does **not** connect or
+disconnect plugin MCP servers in every context — in the desktop app and
+non-interactive sessions those changes only take effect in the next session.
+Fully quit Claude Code and reopen it, then check `/mcp`. In an interactive
+terminal, `/reload-plugins --force` is worth trying first.
+
 **The MnemoDB MCP server won't connect / times out at startup.**
 Update the plugin (or your pin) to **`@mnemodb/mcp@0.1.11` or newer** — it ships
 as a single bundled file that cold-starts in ~2s instead of ~11s, which is what
