@@ -3,6 +3,8 @@ export * from './types.js';
 export { parse } from './parse.js';
 export { serialize, serializeEntry, formatMetaLine, generateId, appendEntry } from './serialize.js';
 export { loadStore, resolveWriteDir, deriveIndex, liveEntries, alwaysTier, supersededIds, forgedSupersedes } from './store.js';
+export { traceSource, srcMatches } from './trace.js';
+export type { TraceHit, TraceReport } from './trace.js';
 export type { Store, LiveEntry } from './store.js';
 export { ttlDays, isExpired, isStale } from './lifecycle.js';
 export { doctor, estimateTokens } from './validate.js';

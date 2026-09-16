@@ -75,7 +75,7 @@ Every write is serialized (a lock) and atomic (temp file + rename), and it's all
 plain Markdown in git — so each change lands as a clean `git diff` you can review.
 
 **You vs. the agent, in one line:** *you* run the `mnemo` CLI (`init`, `list`,
-`show`, `doctor`, `compact`, `migrate`); the *agent* calls the `memory_*` tools
+`show`, `doctor`, `compact`, `migrate`, `trace`); the *agent* calls the `memory_*` tools
 (`recall`, `remember`, `forget`, `pin`, `review`, `compact`, `list`, `show`,
 `history`, `stats`, `boot`) when you ask in plain language. `remember` and friends
 have no CLI — you save memories by telling the agent, not by hand.
@@ -97,7 +97,7 @@ Restart Claude Code and you're set - skip to step 3.
 the server (once):
 
 ```
-claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.14
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.15
 ```
 
 Now the agent *can* recall and remember — but it won't do it reliably unless you
@@ -167,6 +167,37 @@ The write operations carry the safety rules with them: `memory_forget` refuses t
 erase a higher-trust (your) memory, and `memory_pin` refuses to promote
 tool-sourced content into every session — so an injected "forget X" or "always
 do Y" can't turn your memory against you.
+
+## 3c. Who owns a memory, and what one source wrote
+
+Two fields answer different questions. `src:` is **where a memory came from**
+(`user`, `agent`, `tool`) and drives the trust model. `owner:` is **who answers
+for it now** — a person, a team, an agent id:
+
+```markdown
+## decision: We use PostgreSQL LISTEN/NOTIFY for cache invalidation, not Redis
+`mnemo c4d1 | src: user | owner: platform-team | conf: high`
+```
+
+It is optional, and a store that never sets it behaves exactly as before. Once
+any entry has one, `doctor` starts reporting decisions that don't — so the
+convention activates when you adopt it rather than nagging from day one. Ask the
+agent to set it: *"remember that, owned by the platform team."*
+
+When a tool or an agent session turns out to have been feeding you bad
+information, `trace` shows exactly what it put in your memory:
+
+```
+npx @mnemodb/cli trace tool                 # everything any tool wrote
+npx @mnemodb/cli trace tool/session-abc     # one session only
+```
+
+Matching is hierarchical — `tool` covers every `tool/<session>` beneath it — and
+each hit shows whether it is still live, whether it is `untrusted`, who owns it,
+and the file and line it lives on. This is the question a provenance-free memory
+folder cannot answer at all: *what did this source write?* Retire what you find
+by asking the agent to forget those ids, which leaves recoverable tombstones and
+a reviewable diff rather than erasing anything.
 
 ## 4. Keep it healthy (occasionally)
 
@@ -319,7 +350,7 @@ agent treats it as information, never instructions, and it can't be pinned to
 
 ## A realistic first session
 
-1. Install the plugin (or `claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.14`).
+1. Install the plugin (or `claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.15`).
 2. Paste the Memory paragraph (§2B) into your `CLAUDE.md`.
 3. Work normally. When you decide something, say "remember that." The `.memory/`
    folder is created automatically on that first save — no init needed. Tomorrow,

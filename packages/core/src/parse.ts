@@ -13,7 +13,7 @@ const META_LINE_RE = /^`mnemo ([^`]*)`\s*$/;
 const ID_RE = /^[a-z0-9]{4,26}$/;
 const LIST_KEYS = new Set(['supersedes', 'tags']);
 const KNOWN_KEYS = new Set([
-  'scope', 'src', 'conf', 'pin', 'ttl', 'review', 'updated', 'supersedes', 'tags',
+  'scope', 'src', 'owner', 'conf', 'pin', 'ttl', 'review', 'updated', 'supersedes', 'tags',
 ]);
 
 /** Parse a complete .mem.md document. Never throws on content. */

@@ -66,6 +66,7 @@ server.tool(
     type: z.enum(['fact', 'pref', 'decision', 'insight', 'episode', 'todo', 'note']).optional(),
     body: z.string().optional().describe('Evidence, reasoning, links (loaded on demand)'),
     scope: z.enum(['project', 'user']).optional(),
+    owner: z.string().optional().describe('Who is accountable for this memory (person, team, or agent id)'),
     tags: z.array(z.string()).optional(),
     supersedes: z.array(z.string()).optional().describe('Entry ids this replaces'),
   },

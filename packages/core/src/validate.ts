@@ -30,9 +30,16 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
+/** Entry types whose accountability matters enough for `doctor` to ask. */
+const OWNED_TYPES = new Set(['decision', 'policy']);
+
 export function doctor(store: Store, now: Date = new Date()): DoctorReport {
   const diagnostics: Diagnostic[] = [];
   const seenIds = new Map<string, string>();
+  // The ownership check activates only once a store actually uses `owner`
+  // somewhere — a project that has not adopted the convention should not be
+  // nagged on every decision it ever recorded.
+  const usesOwner = store.docs.some((d) => d.entries.some((e) => e.meta.owner));
   let entries = 0;
   let expired = 0;
   let stale = 0;
@@ -64,6 +71,10 @@ export function doctor(store: Store, now: Date = new Date()): DoctorReport {
       if (e.malformed) at(e.line, 'error', 'malformed-entry', `degraded entry (${e.malformed}): ${e.statement.slice(0, 40)}`);
       if (CONFLICT_RE.test(e.raw)) at(e.line, 'error', 'conflict-marker', `merge conflict markers in entry ${e.meta.id ?? '(no id)'}`);
       if (!e.meta.id && !e.malformed) at(e.line, 'warn', 'missing-id', `entry has no id: ${e.statement.slice(0, 40)}`);
+      if (usesOwner && !e.malformed && OWNED_TYPES.has(e.type) && !e.meta.owner) {
+        at(e.line, 'warn', 'unowned-entry',
+          `${e.type} has no owner: ${e.statement.slice(0, 40)}`);
+      }
       if (e.meta.id) {
         const prior = seenIds.get(e.meta.id);
         if (prior) at(e.line, 'error', 'duplicate-id', `id '${e.meta.id}' already used in ${prior}`);

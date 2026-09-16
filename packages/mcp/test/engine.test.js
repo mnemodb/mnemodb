@@ -112,6 +112,18 @@ test('remember refuses a single-file store with a clear message', () => {
   );
 });
 
+test('remember records an owner when given one', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'owner-'));
+  const res = remember(dir, {
+    statement: 'Deploy pipeline is owned by the platform team',
+    type: 'decision', owner: 'platform-team', now: NOW,
+  });
+  assert.equal(res.status, 'created');
+  const txt = readFileSync(join(dir, '.memory', 'project.mem.md'), 'utf8');
+  assert.match(txt, /owner: platform-team/);
+  assert.match(txt, /src: agent \| owner: platform-team/, 'owner sits next to provenance');
+});
+
 test('remember refuses near-duplicates', () => {
   const dir = freshStore();
   const res = remember(dir, {

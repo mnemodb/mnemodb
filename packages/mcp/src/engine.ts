@@ -198,6 +198,8 @@ export interface RememberInput {
   supersedes?: string[];
   /** Provenance; engine enforces truthful recording (spec §10.1). */
   src?: string;
+  /** Who is accountable for this memory (a person, a team, an agent id). */
+  owner?: string;
   now?: Date;
 }
 
@@ -287,6 +289,7 @@ function rememberLocked(storeDir: string, writeRoot: string, input: RememberInpu
       id,
       scope: doc.frontMatter?.scope === scope ? undefined : scope,
       src,
+      ...(input.owner ? { owner: input.owner } : {}),
       updated: now.toISOString().slice(0, 10),
       ...(input.tags?.length ? { tags: input.tags } : {}),
       ...(supersedes.length ? { supersedes } : {}),

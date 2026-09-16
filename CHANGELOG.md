@@ -6,6 +6,45 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.15] — 2026-09-16
+
+Two additions that make provenance do real work, plus CI maintenance.
+
+### Added
+- **`owner:` metadata.** An optional field in the entry's metadata span naming
+  who is accountable for a memory — a person, a team, an agent id. `src:` says
+  where a memory came from; `owner:` says who answers for it now. Agent context
+  tends to fail less because a model is weak than because nobody owns what the
+  agent reads from, and the field is the smallest honest answer to that.
+
+  It is optional and backward-compatible: a store that never sets it behaves
+  exactly as before, and existing files round-trip byte-for-byte. `doctor`
+  reports high-stakes entries (`decision`, `policy`) that lack an owner — but
+  only once a store uses `owner` somewhere, so adopting the convention turns the
+  check on rather than nagging every project from day one. `memory_remember`
+  accepts `owner` too.
+- **`mnemo trace <src>` — blast-radius trace.** Lists every entry a given
+  provenance wrote, with live and `untrusted` flags, the owner, and the file and
+  line. Matching is hierarchical: `tool` covers every `tool/<session>` beneath
+  it, while `tool/session-abc` narrows to one session. Comparison is
+  NFC-normalized and case-insensitive, so a non-canonical `Tool/Session-ABC`
+  cannot hide from a trace the way it once tried to hide from the trust check.
+
+  This answers the question a provenance-free memory folder cannot: when one
+  tool or agent session turns out to be compromised, *what did it put in my
+  memory?* Retiring what you find stays a `forget` — recoverable tombstones and
+  a reviewable diff, never an erase.
+
+### Changed
+- CI actions re-pinned to current commit SHAs (`actions/checkout` v7.0.1,
+  `actions/setup-node` v7.0.0); the previous pins targeted Node 20, which
+  GitHub now force-runs on Node 24.
+
+### Notes
+- Bulk revocation from the CLI is deliberately not here. `forget`'s tombstone
+  logic lives in the MCP engine and the CLI has no write path to it; wiring that
+  up is a refactor that deserves its own change rather than a rider on this one.
+
 ## [0.1.14] — 2026-09-15
 
 **"Remember this" now actually saves something.** Asked plainly to remember

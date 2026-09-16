@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-/** mnemo — the MnemoDB CLI. Commands: init, list, show, doctor. */
+/** mnemo — the MnemoDB CLI. Commands: init, list, show, doctor, compact, migrate, trace. */
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  loadStore, deriveIndex, doctor, liveEntries,
+  loadStore, deriveIndex, doctor, liveEntries, traceSource,
   planCompaction, applyCompaction, writeFileAtomic, withStoreLock,
   migrateProseFile, importNumberedDir, importClaudeMemoryDir, appendEntry, parse, serialize,
 } from '@mnemodb/core';
@@ -174,6 +174,34 @@ function cmdMigrate(source: string): number {
   return 0;
 }
 
+function cmdTrace(dir: string, query: string): number {
+  if (!query || query.startsWith('--')) {
+    console.error('usage: mnemo trace <src> [dir]   e.g. mnemo trace tool  |  mnemo trace tool/session-abc');
+    return 1;
+  }
+  const report = traceSource(loadStore(dir), query);
+  if (report.matched === 0) {
+    console.log(`No entries were written by "${query}".`);
+    return 0;
+  }
+  const noun = report.matched === 1 ? 'entry' : 'entries';
+  console.log(`${report.matched} ${noun} written by "${query}" — ${report.live} still live:\n`);
+  for (const h of report.hits) {
+    const flags = [
+      h.live ? 'live' : 'inactive',
+      h.untrusted ? 'untrusted' : null,
+      h.owner ? `owner: ${h.owner}` : null,
+    ].filter(Boolean).join(' | ');
+    console.log(`  ${(h.id ?? '(no id)').padEnd(10)} ${h.type}: ${h.statement.slice(0, 60)}`);
+    console.log(`  ${''.padEnd(10)} ${h.src}  [${flags}]  ${h.file}:${h.line}`);
+  }
+  if (report.live > 0) {
+    console.log(`\nTo retire the live ones, ask the agent to forget them by id — that leaves a`);
+    console.log(`recoverable tombstone and a reviewable git diff, rather than erasing anything.`);
+  }
+  return 0;
+}
+
 function help(): number {
   console.log(`mnemo — MnemoDB agent memory CLI (spec v0.1)
 
@@ -188,6 +216,8 @@ commands:
   migrate <src>   CLAUDE.md/AGENTS.md → .mem.md preamble; numbered dir (ADRs,
                   learning-records) → typed entries; or a Claude Code memory
                   dir with --claude-memory (--type, --into <file>)
+  trace <src>     every entry a provenance wrote — the blast radius of one tool
+                  or agent session (e.g. 'trace tool', 'trace tool/session-abc')
 `);
   return 0;
 }
@@ -201,6 +231,7 @@ try {
     command === 'doctor' ? cmdDoctor(target) :
     command === 'compact' ? cmdCompact(target) :
     command === 'migrate' ? cmdMigrate(target) :
+    command === 'trace' ? cmdTrace(args[1] && !args[1].startsWith('--') ? args[1] : '.', args[0]) :
     help();
 } catch (e) {
   // Friendly one-line error instead of a raw stack trace (audit LOW).

@@ -5,7 +5,7 @@
 **A structured, portable, auditable memory format for AI agents — a database whose files you can read.**
 
 ```
-claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.14
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.15
 ```
 
 ---
@@ -90,7 +90,7 @@ is optional and does that.
 
 ```
 # 1. give your agent the memory tools (restart Claude Code after)
-claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.14
+claude mcp add mnemodb -- npx -y @mnemodb/mcp@0.1.15
 
 # 2. tell the agent to use them — add this to CLAUDE.md:
 #    "At the start of a task, call memory_recall. When we decide something
@@ -112,7 +112,7 @@ Full walkthrough: **[docs/USAGE.md](docs/USAGE.md)**.
 
 - [`spec/SPEC-v0.1.md`](spec/SPEC-v0.1.md) — the format specification (CC BY 4.0)
 - [`packages/core`](packages/core) — `@mnemodb/core`: parse, serialize, index, resolve, lifecycle, merge, validate (TypeScript, zero runtime deps, Apache-2.0)
-- [`packages/cli`](packages/cli) — the `mnemo` CLI: `init`, `list`, `show`, `doctor`, `compact`, `migrate`
+- [`packages/cli`](packages/cli) — the `mnemo` CLI: `init`, `list`, `show`, `doctor`, `compact`, `migrate`, `trace`
 - [`packages/mcp`](packages/mcp) — `@mnemodb/mcp`: the memory engine as an MCP server for Claude Code, Cursor, and any MCP client. **11 memory-semantic tools** — things a plain memory *folder* can't do: `memory_recall`, `memory_list`, `memory_show`, `memory_history` (supersession lineage), `memory_stats` (the store's self-report), `memory_remember`, `memory_forget` (auditable, trust-gated), `memory_pin` (context-budget control), `memory_review`, `memory_compact`, `memory_boot`
 - [`examples/trust-model-demo.mjs`](examples/trust-model-demo.mjs) — a runnable proof of the trust model: a tool-sourced (untrusted) memory can neither supersede nor forget a memory you wrote. The one thing a provenance-free memory folder can't do. Run it: `node examples/trust-model-demo.mjs`
 - [`spec/AUDIT-2026-08-10.md`](spec/AUDIT-2026-08-10.md) — the adversarial security audit

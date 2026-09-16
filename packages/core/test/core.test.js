@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   parse, serialize, mergeDocs, loadStore, resolveWriteDir, deriveIndex, doctor,
+  traceSource, srcMatches,
   liveEntries, alwaysTier, isExpired, ttlDays, appendEntry, generateId,
 } from '../dist/index.js';
 
@@ -471,4 +472,64 @@ test('resolveWriteDir never nests a second .memory', () => {
   const f = join(dir, 'CLAUDE.md');
   writeFileSync(f, '# hi\n');
   assert.equal(resolveWriteDir(f), f, 'a single-file store target is unchanged');
+});
+
+test('owner: parses into meta, round-trips byte-stably, and is not swept into extra', () => {
+  const src = '---\nmnemo: "0.1"\nscope: project\n---\n\n'
+    + '## decision: Use PostgreSQL LISTEN/NOTIFY for cache invalidation\n'
+    + '`mnemo o1o1 | src: user | owner: platform-team | conf: high`\n\nReasoning.\n';
+  const doc = parse(src);
+  const e = doc.entries[0];
+  assert.equal(e.meta.owner, 'platform-team', 'owner lands in meta');
+  assert.ok(!e.meta.extra || !('owner' in e.meta.extra), 'owner is not an unknown key');
+  assert.equal(serialize(doc), src, 'round-trip stays byte-identical');
+});
+
+test('doctor flags unowned decisions only once a store uses owner at all', () => {
+  const head = '---\nmnemo: "0.1"\nscope: project\n---\n\n';
+  const unowned = '## decision: Ship the thing on Friday\n`mnemo d001 | src: user`\n\n';
+  const owned = '## decision: Adopt Apache-2.0\n`mnemo d002 | src: user | owner: ziv`\n\n';
+
+  // A store that never uses owner is left alone.
+  const quiet = doctor({ root: '.', docs: [parse(head + unowned, 'a.mem.md')] });
+  assert.ok(!quiet.diagnostics.some((d) => d.rule === 'unowned-entry'),
+    'no nagging in a store that has not adopted owner');
+
+  // Once any entry is owned, the convention is in play and gaps are reported.
+  const active = doctor({ root: '.', docs: [parse(head + owned + unowned, 'a.mem.md')] });
+  const hits = active.diagnostics.filter((d) => d.rule === 'unowned-entry');
+  assert.equal(hits.length, 1, 'exactly the unowned decision is flagged');
+  assert.match(hits[0].message, /Ship the thing on Friday/);
+  assert.equal(hits[0].level, 'warn', 'a gap is a warning, not an error');
+});
+
+test('srcMatches is hierarchical and case-insensitive', () => {
+  assert.ok(srcMatches('tool', 'tool'), 'exact');
+  assert.ok(srcMatches('tool/session-abc', 'tool'), 'a session falls under its tier');
+  assert.ok(srcMatches('tool/session-abc', 'tool/session-abc'), 'exact session');
+  assert.ok(!srcMatches('tool/session-abc', 'tool/session-xyz'), 'a different session does not');
+  assert.ok(!srcMatches('agent', 'tool'), 'different tier');
+  // A non-canonical src must not be able to hide from a trace the way it once
+  // tried to hide from the trust check (audit H2).
+  assert.ok(srcMatches('Tool/Session-ABC', 'tool'), 'case-insensitive');
+  assert.ok(!srcMatches('tool', ''), 'an empty query matches nothing');
+  assert.ok(srcMatches(undefined, 'agent'), 'a missing src defaults to agent');
+});
+
+test('traceSource reports the blast radius of one provenance', () => {
+  const store = loadStore(DOGFOOD);
+  const rep = traceSource(store, 'tool');
+  assert.ok(rep.matched > 0, 'the dogfood store has tool-sourced entries');
+  assert.equal(rep.query, 'tool');
+  assert.ok(rep.hits.every((h) => h.untrusted), 'every tool-sourced hit is flagged untrusted');
+  assert.ok(rep.hits.every((h) => h.file && h.line > 0), 'each hit locates itself in a file');
+  assert.equal(rep.live, rep.hits.filter((h) => h.live).length, 'live count matches the hits');
+
+  // Narrowing to one session returns a subset of the tier.
+  const session = rep.hits[0].src;
+  const narrowed = traceSource(store, session);
+  assert.ok(narrowed.matched <= rep.matched, 'a session is a subset of its tier');
+  assert.ok(narrowed.hits.every((h) => h.src === session));
+
+  assert.equal(traceSource(store, 'no-such-source').matched, 0, 'unknown source is empty');
 });

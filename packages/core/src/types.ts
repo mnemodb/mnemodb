@@ -16,6 +16,12 @@ export interface EntryMeta {
   scope?: string;
   /** 'user' | 'agent' | 'tool', optionally with '/<session-ref>' suffix. */
   src?: string;
+  /**
+   * Who is accountable for this memory — a person, a team, an agent id.
+   * Provenance (`src`) says where a memory came from; `owner` says who answers
+   * for it now. Optional: a store that never sets it behaves exactly as before.
+   */
+  owner?: string;
   conf?: Conf;
   pin?: Pin;
   /** Duration like '90d', '6m', or 'none'. */

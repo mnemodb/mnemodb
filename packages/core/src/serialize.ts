@@ -52,6 +52,7 @@ export function formatMetaLine(entry: Entry): string {
   const push = (k: string, v: string | undefined) => { if (v) tokens.push(`${k}: ${cleanVal(v)}`); };
   push('scope', m.scope);
   push('src', m.src);
+  push('owner', m.owner);
   push('conf', m.conf);
   push('pin', m.pin);
   push('ttl', m.ttl);

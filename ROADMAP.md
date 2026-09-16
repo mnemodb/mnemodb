@@ -31,6 +31,15 @@ so. That's how items move up.
 - Store auto-creation — `.memory/` is created on the first `memory_remember`, so
   a project needs no `init` step and a first write can never scatter a
   `project.mem.md` into the project root.
+- Entry ownership — an optional `owner:` in the metadata span naming who is
+  accountable for a memory, distinct from `src:` (where it came from). `doctor`
+  flags high-stakes entries without one, but only once a store actually uses
+  owners, so projects that have not adopted the convention are left alone.
+- Blast-radius trace — `mnemo trace <src>` lists every entry a given provenance
+  wrote, hierarchically (`tool` covers every `tool/<session>` under it) and with
+  live and untrusted flags. Provenance stops being a static label and becomes an
+  incident response: when one tool or agent session turns out to be compromised,
+  you can see exactly what it put in your memory.
 
 ## Likely next (v0.2 candidates)
 
@@ -48,16 +57,6 @@ Ordered by current guess at leverage; real use may reorder them.
 - **`doctor` / `list` polish** — distinguish damaged entries from
   superseded/expired in output; richer health summaries.
 - **Deterministic conformance fixtures** — fixed ids so the corpus is stable.
-- **Entry ownership (`owner:`)** — an optional `owner` field in the metadata span
-  (a person, a team, an agent id) naming who is accountable for a memory. Agent
-  context tends to fail less because the model is weak than because nobody owns
-  what the agent reads from — no owner, no contract, no metadata. With it,
-  `doctor` can flag high-stakes entries (decisions, policies) that have none.
-- **Blast-radius trace** — `mnemo trace --src <source>` lists every entry a given
-  provenance wrote, with a bulk `forget` for the set. Provenance is already on
-  every entry; this turns it from a static label into an incident response: when
-  one tool or agent session turns out to be compromised, you can see exactly what
-  it wrote and revoke it in one pass, auditably.
 - **Secret detection in `doctor`** — flag secret-shaped content (API keys, tokens,
   `BEGIN … PRIVATE KEY` headers) at write-time and in `doctor`, plus skill
   guidance to store policies, not secret values. (Audit follow-up.)
