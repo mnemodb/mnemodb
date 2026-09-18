@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.18] — 2026-09-18
+
+No functional change. This release exists to prove that publishing works.
+
+- **Publishing moved to npm Trusted Publishing (OIDC) in 0.1.17's wake**, but no
+  release has actually gone out through it: the v0.1.17 tag sat on `f1dfba9`,
+  which predates the OIDC change, so that green run still published with the
+  long-lived `NPM_TOKEN`. An untested release path is not a release path. This
+  version is a deliberate no-op bump whose only job is to put a tag on a commit
+  that contains the OIDC workflow and watch all four packages publish without a
+  token.
+- `NPM_TOKEN` stays in repository secrets until this run is green, as the
+  rollback. It is removed immediately afterwards — a bypass-2FA token that
+  nothing uses is pure attack surface.
+
 ## [0.1.17] — 2026-09-16
 
 A freshly scaffolded store is three near-empty files and an empty folder, which
