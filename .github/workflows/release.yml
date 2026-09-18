@@ -2,11 +2,21 @@ name: Release
 # Publishes all four packages to npm with sigstore provenance when a version
 # tag is pushed (e.g. `git tag v0.1.10 && git push --tags`).
 #
-# Setup required once (audit M9):
-#   - Either add a granular npm automation token as the repo secret NPM_TOKEN,
-#     OR configure npm "trusted publishing" (OIDC) for each package on npmjs.com
-#     and remove the NODE_AUTH_TOKEN lines below.
-#   - Provenance needs npm >= 9.5 (bundled with Node 20+) and id-token: write.
+# Auth is npm "trusted publishing" (OIDC) — there is no NPM_TOKEN secret. Each
+# package is configured on npmjs.com to trust this repo + workflow, and the job
+# exchanges its GitHub OIDC token for a short-lived publish credential. Nothing
+# long-lived is stored, nothing expires silently, and no 2FA bypass is involved.
+#
+# Setup required once, per package, on npmjs.com:
+#   Package -> Settings -> Trusted publisher -> GitHub Actions
+#     org/repo:  mnemodb/mnemodb
+#     workflow:  .github/workflows/release.yml
+#   Do this for @mnemodb/core, @mnemodb/cli, @mnemodb/mcp AND the unscoped
+#   `mnemodb` — the unscoped one is the package that has needed a manual publish
+#   on every release so far.
+#
+# Requires id-token: write (below) and npm >= 11.5.1, which is newer than the
+# npm bundled with Node 22 — hence the explicit npm upgrade step.
 on:
   push:
     tags: ['v*']
@@ -25,6 +35,8 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
           cache: npm
+      # Trusted publishing needs npm >= 11.5.1; Node 22 bundles npm 10.x.
+      - run: npm install -g npm@latest
       - run: npm ci
       - run: npm run build
       - run: node --test packages/core/test/*.test.js packages/cli/test/*.test.js packages/mcp/test/*.test.js plugin/test/*.test.js
@@ -33,17 +45,9 @@ jobs:
       # Publish in dependency order: core first, meta package last.
       - name: Publish @mnemodb/core
         run: npm publish -w packages/core --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish @mnemodb/cli
         run: npm publish -w packages/cli --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish @mnemodb/mcp
         run: npm publish -w packages/mcp --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish mnemodb
         run: npm publish -w packages/mnemodb --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
