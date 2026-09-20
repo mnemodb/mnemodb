@@ -24,10 +24,33 @@ const { version } = createRequire(import.meta.url)('../package.json') as { versi
 // Resolve the store's base directory. Prefer MNEMO_STORE (the Claude Code
 // plugin sets it to ${CLAUDE_PROJECT_DIR} so writes always land in the
 // project's store, never wherever npx happened to launch us). Fall back to the
-// working directory only when it is unset. `loadStore` handles the .memory/ vs
+// working directory only when it is *unset*. `loadStore` handles the .memory/ vs
 // single-file layout underneath whichever base we return.
+//
+// Set-but-broken is treated as an error, not as "unset". A host that does not
+// define CLAUDE_PROJECT_DIR hands us "" (or, on some hosts, the literal
+// "${CLAUDE_PROJECT_DIR}"). The old `env || cwd()` collapsed both to the
+// working directory, so the store was created wherever npx happened to start —
+// the exact scatter this variable exists to prevent. On an ephemeral host that
+// means memories are written, reported saved, and then lost with the sandbox.
+// Silent data loss is the worst outcome available to a memory tool, so fail
+// loudly and name the variable instead.
 function storeDir(): string {
-  return process.env.MNEMO_STORE || process.cwd();
+  const raw = process.env.MNEMO_STORE;
+  if (raw === undefined) return process.cwd(); // documented fallback, unchanged
+  if (raw.trim() === '') {
+    throw new Error(
+      'MNEMO_STORE is set but empty \u2014 a "${CLAUDE_PROJECT_DIR}"-style expansion failed. ' +
+        'Point MNEMO_STORE at your project directory, or unset it to use the current directory.',
+    );
+  }
+  if (/\$\{[^}]*\}/.test(raw)) {
+    throw new Error(
+      `MNEMO_STORE arrived unexpanded (${raw}) \u2014 the host did not substitute the variable. ` +
+        'Point MNEMO_STORE at your project directory, or unset it to use the current directory.',
+    );
+  }
+  return raw; // byte-identical to the previous behaviour for every valid value
 }
 
 const text = (data: unknown) => ({
