@@ -6,6 +6,32 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.19] — 2026-09-20
+
+A broken `MNEMO_STORE` is now an error instead of a silent fallback.
+
+- **Fixed: the store could be created in the wrong place, silently.** The plugin
+  passes `MNEMO_STORE="${CLAUDE_PROJECT_DIR}"`. On a host that never defines that
+  variable the server received an empty string, and `env || cwd()` treated empty
+  exactly like unset — creating the store wherever `npx` happened to start. That
+  is the precise scatter the variable exists to prevent.
+
+  On an ephemeral host it was worse than wrong: `memory_remember` wrote the file,
+  reported success, and the store disappeared with the sandbox. Silent data loss
+  is the worst outcome available to a tool whose one promise is surviving
+  sessions. Found in a Cowork cloud session, where `CLAUDE_PROJECT_DIR` is unset.
+
+  `storeDir()` now separates the cases: **unset** still falls back to the working
+  directory (the documented single-file behaviour, unchanged); **empty or
+  whitespace** throws, naming `MNEMO_STORE` and the failed expansion; a **literal
+  `${...}`** throws too, for hosts that pass the variable through unexpanded. Any
+  other value is returned verbatim, byte-identical to before — no working
+  configuration changes.
+- **Five tests spawn the real bundled server over stdio.** The three guards fail
+  against the previous implementation and pass against this one; the two that
+  assert unchanged behaviour — unset, and a valid path — pass against both, so
+  the working paths are pinned as well as the broken ones.
+
 ## [0.1.18] — 2026-09-18
 
 No functional change. This release exists to prove that publishing works.
