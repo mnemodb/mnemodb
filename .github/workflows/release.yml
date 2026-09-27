@@ -39,7 +39,10 @@ jobs:
       - run: npm install -g npm@latest
       - run: npm ci
       - run: npm run build
-      - run: node --test packages/core/test/*.test.js packages/cli/test/*.test.js packages/mcp/test/*.test.js plugin/test/*.test.js
+      # Delegate to package.json rather than restating the globs: this line
+      # drifted once already when plugin/test/ moved to test/, and Node 20 fails
+      # hard on a pattern that matches nothing while Node 22 quietly passes.
+      - run: npm test
       - name: Security gate (adversarial suite must pass before publish)
         run: node --test packages/mcp/test/security.test.js
       # Publish in dependency order: core first, meta package last.
