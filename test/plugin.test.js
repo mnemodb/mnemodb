@@ -11,8 +11,12 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url)); // plugin/
-const REPO = fileURLToPath(new URL('../..', import.meta.url));
+// This suite lives at the repo root, not inside plugin/: anything shipped in
+// the plugin is read by the directory's policy scanner, and a test asserting
+// on `npx ...` strings reads to it as a download-and-run command
+// (RUNTIME_FETCH_EXEC). The tests are a repo gate, not a plugin artifact.
+const REPO = fileURLToPath(new URL('..', import.meta.url)); // repo root
+const ROOT = `${REPO}plugin/`;
 const read = (p) => readFileSync(p, 'utf8');
 const json = (p) => JSON.parse(read(p));
 

@@ -26,7 +26,7 @@ claude plugin install mnemodb@mnemodb
 Then create a store in your project (once) and restart Claude Code:
 
 ```bash
-npx @mnemodb/cli init
+npx @mnemodb/cli@0.1.19 init
 ```
 
 That's it. The agent will now recall relevant memory at the start of tasks and

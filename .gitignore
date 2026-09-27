@@ -4,3 +4,4 @@ dist/
 
 # delivery tarballs (never commit)
 *.tar
+**/evals/results/

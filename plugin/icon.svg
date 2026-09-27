@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MnemoDB">
+  <title>MnemoDB</title>
+  <rect width="512" height="512" rx="112" fill="#12161C"/>
+  <!-- a page: memory you can open -->
+  <path d="M152 112h144l64 64v224a24 24 0 0 1-24 24H152a24 24 0 0 1-24-24V136a24 24 0 0 1 24-24z"
+        fill="none" stroke="#DCE3EC" stroke-width="22" stroke-linejoin="round"/>
+  <path d="M296 112v56a16 16 0 0 0 16 16h48" fill="none" stroke="#DCE3EC" stroke-width="22" stroke-linejoin="round"/>
+  <!-- three entries; the middle one is provenance-marked -->
+  <line x1="176" y1="248" x2="336" y2="248" stroke="#DCE3EC" stroke-width="22" stroke-linecap="round"/>
+  <line x1="176" y1="312" x2="336" y2="312" stroke="#5FCB8C" stroke-width="22" stroke-linecap="round"/>
+  <line x1="176" y1="376" x2="272" y2="376" stroke="#DCE3EC" stroke-width="22" stroke-linecap="round"/>
+</svg>

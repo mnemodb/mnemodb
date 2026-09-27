@@ -9,6 +9,7 @@
   "repository": "https://github.com/mnemodb/mnemodb",
   "license": "Apache-2.0",
   "keywords": ["memory", "agent", "mcp", "mnemodb"],
+  "icon": "./icon.svg",
   "mcpServers": "./.mcp.json",
   "skills": "./skills/"
 }
