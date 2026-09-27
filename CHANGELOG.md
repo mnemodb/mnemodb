@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.20] — 2026-09-27
+
+Listed in the official MCP Registry, under a name that belongs to the project
+rather than to a code host.
+
+- **`server.json` and `mcpName`.** The registry verifies ownership by reading
+  `mcpName` out of the *published* npm package, so this had to be a release
+  rather than a config file. The server is registered as
+  **`dev.mnemodb/mnemodb`** — the reverse-DNS form of `mnemodb.dev`, proven by
+  a key we control on a domain we own. GitHub-based auth would have named it
+  `io.github.mnemodb/…`, which ties the identity of a portable format to one
+  code host; that is the thing this project is supposed to avoid.
+- `server.json` documents `MNEMO_STORE` for registry consumers, including that
+  an empty value is an error rather than a silent fallback (see 0.1.19).
+- No functional change to any package.
+
 ## [0.1.19] — 2026-09-20
 
 A broken `MNEMO_STORE` is now an error instead of a silent fallback.

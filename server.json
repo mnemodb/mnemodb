@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "dev.mnemodb/mnemodb",
+  "description": "Persistent, human-readable memory for AI agents. Memories are plain Markdown (.mem.md) in your own repo — readable, hand-editable, diffable in git. Every entry records where it came from; tool-sourced content is marked untrusted and can never override what you said.",
+  "repository": {
+    "url": "https://github.com/mnemodb/mnemodb",
+    "source": "github"
+  },
+  "version": "0.1.20",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@mnemodb/mcp",
+      "version": "0.1.20",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "MNEMO_STORE",
+          "description": "Directory containing the .memory/ store. Leave unset to use the working directory. Setting it to an empty value is an error: the server refuses rather than writing the store somewhere that will not persist.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

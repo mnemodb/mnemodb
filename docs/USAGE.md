@@ -106,7 +106,7 @@ claude mcp add mnemodb -- npx -y @mnemodb/mcp@latest
 
 `@latest` keeps this command correct as releases go out — a pinned version in a
 guide ages into a recommendation to install a known-old build. Pin a specific
-version instead (`@mnemodb/mcp@0.1.19`) if you want a fixed, auditable input;
+version instead (`@mnemodb/mcp@0.1.20`) if you want a fixed, auditable input;
 the plugin does exactly that, because its config re-resolves on every session
 rather than being a command you read before running.
 
