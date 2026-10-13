@@ -351,7 +351,7 @@ export function review(storeDir: string, now: Date = new Date()): ReviewReport {
     untrusted: {
       count: toolSourced,
       ...(toolSourced > 0
-        ? { hint: `${toolSourced} live entr${toolSourced === 1 ? 'y' : 'ies'} came from tool sources. Review what one source wrote with \`mnemo trace tool\` (or \`mnemo trace tool/<session>\`).` }
+        ? { hint: `${toolSourced} live entr${toolSourced === 1 ? 'y' : 'ies'} came from tool sources. The user can review them all with \`mnemo trace tool\`.` }
         : {}),
     },
     contradictions: report.diagnostics.filter((d) => d.rule === 'contradiction').map((d) => d.message),

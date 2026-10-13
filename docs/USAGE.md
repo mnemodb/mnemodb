@@ -199,18 +199,22 @@ any entry has one, `doctor` starts reporting decisions that don't — so the
 convention activates when you adopt it rather than nagging from day one. Ask the
 agent to set it: *"remember that, owned by the platform team."*
 
-When a tool or an agent session turns out to have been feeding you bad
-information, `trace` shows exactly what it put in your memory:
+When content from tool output or a web page turns out to have been bad, `trace`
+shows everything that was saved from those sources:
 
 ```
-npx @mnemodb/cli trace tool                 # everything any tool wrote
-npx @mnemodb/cli trace tool/session-abc     # one session only
+npx @mnemodb/cli trace tool                 # everything saved as tool-sourced
+npx @mnemodb/cli trace tool/session-abc     # one labelled source only
 ```
 
-Matching is hierarchical — `tool` covers every `tool/<session>` beneath it — and
-each hit shows whether it is still live, whether it is `untrusted`, who owns it,
+Matching is hierarchical — `tool` covers every `tool/<label>` beneath it. The
+MCP tools record plain `tool`, with no source or session attached, so for
+memories the agent saved, `trace tool` is the view: it lists all tool-sourced
+memory together rather than one source at a time. A suffix such as
+`tool/session-abc` exists only on entries written by hand or imported with one.
+Each hit shows whether it is still live, whether it is `untrusted`, who owns it,
 and the file and line it lives on. This is the question a provenance-free memory
-folder cannot answer at all: *what did this source write?* Retire what you find
+folder cannot answer at all: *what came from outside?* Retire what you find
 by asking the agent to forget those ids, which leaves recoverable tombstones and
 a reviewable diff rather than erasing anything.
 

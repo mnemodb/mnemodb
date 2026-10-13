@@ -53,9 +53,11 @@ file doesn't:
   agent never writes `user` — entries you write into a `.mem.md` file yourself
   are the ones it can't forget.
 - **Containment when something does go wrong.** Because provenance is on every
-  entry, `mnemo trace tool` (or `mnemo trace tool/session-abc`) lists exactly
-  what one source put in your memory — the question a provenance-free folder
-  can't answer at all. An optional `owner:` records who is *accountable* for a
+  entry, `mnemo trace tool` lists everything saved from tool output — the
+  question a provenance-free folder can't answer at all. The plugin records
+  plain `tool`, so this shows all tool-sourced memory together, not one source
+  at a time; a suffix such as `tool/session-abc`, on entries you hand-edit or
+  import, narrows it further. An optional `owner:` records who is *accountable* for a
   memory, as distinct from where it came from; `doctor` flags decisions without
   one, but only once a store actually uses owners.
 - **Portability.** The same files work across Claude Code, Cursor, and any MCP
