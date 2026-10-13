@@ -350,8 +350,9 @@ The server and the CLI are pointed at different stores. An MCP server's working
 directory isn't guaranteed to be your project root, so it may have written a
 `.memory/` elsewhere. The plugin pins `MNEMO_STORE=${CLAUDE_PROJECT_DIR}` to
 prevent this; for a manual `claude mcp add`, set `MNEMO_STORE=/path/to/project`
-in the server's env and run the CLI from the same directory (or
-`MNEMO_STORE=… npx @mnemodb/cli list`).
+in the server's env, and run the CLI from that directory or pass it the path:
+`npx @mnemodb/cli list /path/to/project`. (The CLI reads no environment
+variables — `MNEMO_STORE` only affects the MCP server.)
 
 **The agent doesn't recall on its own.**
 It won't reliably check memory unless told to. Add the Memory paragraph (§2) to
