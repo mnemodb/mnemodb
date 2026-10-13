@@ -6,6 +6,58 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.21] — 2026-10-13
+
+The trust model's promises now hold for what the plugin itself writes, and the
+docs say plainly where they stop. Raised by the Anthropic plugin directory
+review.
+
+- **Fixed: nothing saved through the plugin could ever be untrusted.**
+  `memory_remember` had no provenance input and stamped every write `agent`.
+  The engine's guards — the `untrusted` flag on recall, the refusal to pin tool
+  content to `always`, the bar on tool content superseding a trusted entry —
+  only act on `tool` entries, so for anything Claude saved they never fired,
+  while the README, the skill and the tool descriptions said they did.
+  `memory_remember` now takes `src: "agent" | "tool"`; `"user"` is rejected at
+  the MCP boundary. The skill and the session-start hook tell Claude to mark
+  anything taken from tool output or a web page — copied or paraphrased — as
+  `tool`.
+- **The docs say what is enforced, and what isn't.** The `tool` label is applied
+  by the agent itself: it catches honest mistakes, not an injection that leaves
+  it off. Nothing saved through the tools is ever `user` — including what you
+  ask Claude to remember — so the agent can supersede or forget those entries;
+  only entries you write into a `.mem.md` file yourself are `user`, and the
+  agent cannot forget them. `mnemo trace tool` lists everything saved from
+  tools: the plugin records no per-source or per-session suffix, so it is not a
+  one-source view. Updated in the README, both npm READMEs, USAGE, the skill,
+  the `memory_forget` description, the `memory_review` hint and `mnemo help`.
+- **`memory_remember` results no longer claim more than happened.** Supersede
+  targets refused by the trust bar come back in `refusedSupersedes` and stay
+  live. Ids that match no entry come back in `missingSupersedes` and are no
+  longer written into the new entry as a supersession that never happened. A
+  `duplicate` result carries `duplicateSrc`, so Claude can see when the memory
+  it resolved to is an untrusted `tool` entry.
+- **Fixed: a store created by the first save was incomplete.** It got only
+  `project.mem.md` — no archive, so compaction silently moved nothing, and no
+  union merge driver. The first write now creates the same layout as
+  `mnemo init` (new `core/scaffold.ts`, shared by both), keeping everything
+  inside `.memory/`, including a nested `.gitattributes`. Compaction in a
+  `.memory/` store that has no archive creates one when something moves.
+  Existing stores are never re-scaffolded. The plugin README no longer says to
+  run `init` and restart.
+- **Bundled MCP SDK 1.30.0 → 1.32.1.** 1.30.0 is inside the range of
+  GHSA-6qxp-vccf-f47h (the SDK's OAuth client). The shipped stdio server
+  contains none of that code, but the SDK is bundled into what users run.
+  `npm audit`: 0 vulnerabilities.
+- USAGE no longer suggests `MNEMO_STORE=… mnemo list`: the CLI reads no
+  environment variables, so pass it the path.
+- Tests 116 → 135. Each new behaviour has a test that fails against 0.1.20,
+  several of them driving the bundled server over stdio.
+
+**Upgrading a store created by a first save before 0.1.21:** compaction repairs
+the missing archive on its own, but add the merge driver yourself — a file
+`.memory/.gitattributes` containing `*.mem.md merge=union`.
+
 ## [0.1.20] — 2026-09-27
 
 Listed in the official MCP Registry, under a name that belongs to the project
