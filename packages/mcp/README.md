@@ -51,8 +51,8 @@ Or in `.mcp.json` at your project root:
 }
 ```
 
-The store is discovered at `./.memory` (create one with `npx @mnemodb/cli init`),
-or set `MNEMO_STORE=/path/to/store`. Then add a short instruction to `CLAUDE.md`
+The store is `./.memory`, created on the first `memory_remember` (or up front
+with `npx @mnemodb/cli init`, optional), or set `MNEMO_STORE=/path/to/store`. Then add a short instruction to `CLAUDE.md`
 telling the agent to call `memory_recall` / `memory_remember` — see
 https://github.com/mnemodb/mnemodb/blob/main/docs/USAGE.md
 

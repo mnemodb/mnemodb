@@ -259,8 +259,9 @@ function rememberLocked(storeDir: string, writeRoot: string, input: RememberInpu
   // At the MCP boundary `src` is limited to 'agent' | 'tool' (never 'user');
   // programmatic callers may pass any value, which is cleaned on write.
   const src = (input.src ?? 'agent');
-  // Only same-or-higher-trust writers may supersede (mirrors §10; a tool/agent
-  // caller cannot erase a user entry — enforced again at resolution).
+  // Supersede bar (spec §10): a tool-sourced write may not supersede an agent or
+  // user entry — enforced again at resolution. Agent and user writes may revise
+  // anything, including user entries: an agent write CAN supersede a user entry.
   const supersedes = (input.supersedes ?? []).filter((tid) => {
     const target = store.docs.flatMap((d) => d.entries).find((e) => e.meta.id === tid);
     if (!target) return true;
