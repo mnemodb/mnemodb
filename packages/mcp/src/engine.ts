@@ -208,6 +208,16 @@ export interface RememberResult {
   id: string;
   file: string;
   duplicateOf?: string;
+  /**
+   * Provenance of the existing entry a duplicate resolved to. It can be 'tool'
+   * (untrusted) even when the caller meant to save a trusted memory.
+   */
+  duplicateSrc?: string;
+  /**
+   * Supersede targets the trust bar refused. Those entries were NOT replaced
+   * and stay live; without this the result would claim more than happened.
+   */
+  refusedSupersedes?: { id: string; reason: string }[];
 }
 
 /** Jaccard similarity on token sets — cheap near-duplicate detection. */
@@ -262,19 +272,33 @@ function rememberLocked(storeDir: string, writeRoot: string, input: RememberInpu
   // Supersede bar (spec §10): a tool-sourced write may not supersede an agent or
   // user entry — enforced again at resolution. Agent and user writes may revise
   // anything, including user entries: an agent write CAN supersede a user entry.
+  // Refusals are reported, never dropped silently: the caller must not believe
+  // an entry was replaced when it is still live.
+  const refused: { id: string; reason: string }[] = [];
   const supersedes = (input.supersedes ?? []).filter((tid) => {
     const target = store.docs.flatMap((d) => d.entries).find((e) => e.meta.id === tid);
     if (!target) return true;
     // Only bar the tool→(user/agent) escalation; agent/user may revise freely.
-    return !(trustRank(src) === 1 && trustRank(target.meta.src) > 1);
+    if (trustRank(src) === 1 && trustRank(target.meta.src) > 1) {
+      refused.push({
+        id: tid,
+        reason: `a tool-sourced write cannot supersede a ${canonicalSrc(target.meta.src)} entry; both stay live`,
+      });
+      return false;
+    }
+    return true;
   });
+  const refusal = refused.length ? { refusedSupersedes: refused } : {};
 
   // Dedup: near-identical live statement → return existing, write nothing.
   if (!supersedes.length) {
     for (const { entry } of liveEntries(store, now)) {
       if (entry.meta.id && similarity(entry.statement, statement) >= 0.8) {
         const dupFile = store.docs.find((d) => d.entries.some((x) => x.meta.id === entry.meta.id))?.path ?? '';
-        return { status: 'duplicate', id: entry.meta.id, duplicateOf: entry.meta.id, file: dupFile };
+        return {
+          status: 'duplicate', id: entry.meta.id, duplicateOf: entry.meta.id,
+          duplicateSrc: canonicalSrc(entry.meta.src), file: dupFile, ...refusal,
+        };
       }
     }
   }
@@ -320,7 +344,7 @@ function rememberLocked(storeDir: string, writeRoot: string, input: RememberInpu
   writeFileAtomic(path, output);
   return {
     status: supersedes.length ? 'superseded-and-created' : 'created',
-    id, file: fileName,
+    id, file: fileName, ...refusal,
   };
 }
 

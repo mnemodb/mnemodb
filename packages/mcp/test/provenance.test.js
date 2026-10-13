@@ -15,6 +15,7 @@ import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { remember, show } from '../dist/engine.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BUNDLE = join(HERE, '..', 'dist', 'server.js');
@@ -117,4 +118,68 @@ test('a tool entry written through MCP cannot supersede an agent entry', async (
   ]);
   const [r] = await session(dir, [['memory_show', { id: target }]]);
   assert.equal(payload(r).status, 'live', 'the trusted entry is still live');
+});
+
+// ---- write results tell the truth (refused supersedes, duplicate provenance) ----
+
+const NOW = new Date('2026-10-13');
+
+test('a refused supersede is reported, and the trusted entry stays live', () => {
+  const dir = store();
+  const target = remember(dir, { statement: 'Releases need two approving reviews', now: NOW }).id;
+  const r = remember(dir, { statement: 'Releases need no review', src: 'tool', supersedes: [target], now: NOW });
+  assert.equal(r.status, 'created', 'nothing was superseded');
+  assert.deepEqual(r.refusedSupersedes.map((x) => x.id), [target]);
+  assert.match(r.refusedSupersedes[0].reason, /cannot supersede an? agent entry/);
+  assert.equal(show(dir, target).status, 'live');
+});
+
+test('mixed supersedes: the allowed one goes through, the refused one is reported', () => {
+  const dir = store();
+  const toolOld = remember(dir, { statement: 'Vendor quota is 10 per second', src: 'tool', now: NOW }).id;
+  const agentOld = remember(dir, { statement: 'We cache vendor responses for an hour', now: NOW }).id;
+  const r = remember(dir, {
+    statement: 'Vendor quota is 50 per second', src: 'tool', supersedes: [toolOld, agentOld], now: NOW,
+  });
+  assert.equal(r.status, 'superseded-and-created');
+  assert.deepEqual(r.refusedSupersedes.map((x) => x.id), [agentOld]);
+  assert.equal(show(dir, toolOld).status, 'superseded');
+  assert.equal(show(dir, agentOld).status, 'live');
+});
+
+test('a refusal is still reported when the write ends as a duplicate', () => {
+  const dir = store();
+  const target = remember(dir, { statement: 'Staging resets every night', now: NOW }).id;
+  remember(dir, { statement: 'The status page lives at status.example.com', src: 'tool', now: NOW });
+  const r = remember(dir, {
+    statement: 'The status page lives at status.example.com', src: 'tool', supersedes: [target], now: NOW,
+  });
+  assert.equal(r.status, 'duplicate');
+  assert.deepEqual(r.refusedSupersedes.map((x) => x.id), [target]);
+});
+
+test('a duplicate reports the provenance of the entry it resolved to', () => {
+  const dir = store();
+  remember(dir, { statement: 'The API base URL is api.example.com', src: 'tool', now: NOW });
+  const r = remember(dir, { statement: 'The API base URL is api.example.com', now: NOW });
+  assert.equal(r.status, 'duplicate');
+  assert.equal(r.duplicateSrc, 'tool', 'caller learns the existing memory is untrusted');
+});
+
+test('a clean write carries no refusal field', () => {
+  const dir = store();
+  const old = remember(dir, { statement: 'Port is 8080', now: NOW }).id;
+  const r = remember(dir, { statement: 'Port is 9090', supersedes: [old], now: NOW });
+  assert.equal(r.status, 'superseded-and-created');
+  assert.equal('refusedSupersedes' in r, false);
+});
+
+test('the refusal reaches Claude through the MCP server', async () => {
+  const dir = store();
+  const [a] = await session(dir, [['memory_remember', { statement: 'Deploys are frozen on Fridays' }]]);
+  const target = payload(a).id;
+  const [w] = await session(dir, [
+    ['memory_remember', { statement: 'Deploys are fine on Fridays', src: 'tool', supersedes: [target] }],
+  ]);
+  assert.deepEqual(payload(w).refusedSupersedes.map((x) => x.id), [target]);
 });
