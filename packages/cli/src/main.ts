@@ -181,7 +181,7 @@ function cmdMigrate(source: string): number {
 
 function cmdTrace(dir: string, query: string): number {
   if (!query || query.startsWith('--')) {
-    console.error('usage: mnemo trace <src> [dir]   e.g. mnemo trace tool  |  mnemo trace tool/session-abc');
+    console.error('usage: mnemo trace <src> [dir]   e.g. mnemo trace tool  (everything saved from tools)');
     return 1;
   }
   const report = traceSource(loadStore(dir), query);
@@ -221,8 +221,9 @@ commands:
   migrate <src>   CLAUDE.md/AGENTS.md → .mem.md preamble; numbered dir (ADRs,
                   learning-records) → typed entries; or a Claude Code memory
                   dir with --claude-memory (--type, --into <file>)
-  trace <src>     every entry a provenance wrote — the blast radius of one tool
-                  or agent session (e.g. 'trace tool', 'trace tool/session-abc')
+  trace <src>     every entry from one provenance, e.g. 'trace tool' (everything
+                  saved from tools), or 'trace tool/<label>' for entries written
+                  with a label
 `);
   return 0;
 }
