@@ -46,7 +46,7 @@ deleted \u2014 archived entries stay readable and can be brought back.
 \`\`\`
 npx @mnemodb/cli list        # every memory, one line each
 npx @mnemodb/cli doctor      # health: stale, contradictions, budget, damage
-npx @mnemodb/cli trace tool  # what one source wrote (incident response)
+npx @mnemodb/cli trace tool  # everything saved from tools (incident response)
 \`\`\`
 
 Or just open the files. That is the whole point.

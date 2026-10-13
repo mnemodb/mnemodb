@@ -290,7 +290,7 @@ function rememberLocked(storeDir: string, writeRoot: string, input: RememberInpu
     if (trustRank(src) === 1 && trustRank(target.meta.src) > 1) {
       refused.push({
         id: tid,
-        reason: `a tool-sourced write cannot supersede a ${canonicalSrc(target.meta.src)} entry; both stay live`,
+        reason: `a tool-sourced write cannot supersede ${/^[aeiou]/.test(canonicalSrc(target.meta.src)) ? 'an' : 'a'} ${canonicalSrc(target.meta.src)} entry; both stay live`,
       });
       return false;
     }

@@ -7,7 +7,8 @@
  * Native auto-memory has no provenance: a note is a note. Once an agent writes
  * something to it (including text scraped from a page), it reloads next session
  * as trusted context. MnemoDB records where each memory came from (user / agent
- * / tool) and enforces a trust order, so injected content can't hijack you.
+ * / tool) and enforces a trust order, so content labelled tool can't override
+ * what you wrote.
  *
  * Run from the repo root after `npm run build`:
  *   node examples/trust-model-demo.mjs

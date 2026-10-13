@@ -130,7 +130,7 @@ test('a refused supersede is reported, and the trusted entry stays live', () => 
   const r = remember(dir, { statement: 'Releases need no review', src: 'tool', supersedes: [target], now: NOW });
   assert.equal(r.status, 'created', 'nothing was superseded');
   assert.deepEqual(r.refusedSupersedes.map((x) => x.id), [target]);
-  assert.match(r.refusedSupersedes[0].reason, /cannot supersede an? agent entry/);
+  assert.match(r.refusedSupersedes[0].reason, /cannot supersede an agent entry/);
   assert.equal(show(dir, target).status, 'live');
 });
 

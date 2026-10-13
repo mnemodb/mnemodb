@@ -183,7 +183,7 @@ to remember — is `agent` or `tool`, never `user`, so the agent can revise or
 forget it. The only entries it cannot forget are ones you write yourself, by
 editing a `.mem.md` file.
 
-## 3c. Who owns a memory, and what one source wrote
+## 3c. Who owns a memory, and what came from tools
 
 Two fields answer different questions. `src:` is **where a memory came from**
 (`user`, `agent`, `tool`) and drives the trust model. `owner:` is **who answers
