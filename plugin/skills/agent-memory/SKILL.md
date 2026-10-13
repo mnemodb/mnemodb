@@ -94,7 +94,8 @@ saved without the label — copied or paraphrased — is stored as trusted.
 
 Read what `memory_remember` returns before telling the user what happened. A
 `refusedSupersedes` list means those entries were **not** replaced and are still
-live — say so. A `duplicate` result means nothing new was written; if its
+live — say so. A `missingSupersedes` list means those ids matched no entry, so
+nothing was replaced for them — look the entry up again before retrying. A `duplicate` result means nothing new was written; if its
 `duplicateSrc` is `tool`, the memory exists only as an untrusted entry.
 
 ### Ownership (`owner:`) — optional, and often right to omit

@@ -183,3 +183,21 @@ test('the refusal reaches Claude through the MCP server', async () => {
   ]);
   assert.deepEqual(payload(w).refusedSupersedes.map((x) => x.id), [target]);
 });
+
+test('a supersede of an id that does not exist is reported and not recorded', () => {
+  const dir = store();
+  const r = remember(dir, { statement: 'Use port 9090', supersedes: ['zzzz'], now: NOW });
+  assert.equal(r.status, 'created', 'nothing was superseded');
+  assert.deepEqual(r.missingSupersedes, ['zzzz']);
+  assert.doesNotMatch(projectFile(dir), /supersedes: zzzz/, 'no dangling supersede in the file');
+});
+
+test('missing and real targets in one call: only the real one counts', () => {
+  const dir = store();
+  const old = remember(dir, { statement: 'Use port 8080', now: NOW }).id;
+  const r = remember(dir, { statement: 'Use port 9090', supersedes: [old, 'zzzz'], now: NOW });
+  assert.equal(r.status, 'superseded-and-created');
+  assert.deepEqual(r.missingSupersedes, ['zzzz']);
+  assert.equal(show(dir, old).status, 'superseded');
+  assert.match(projectFile(dir), new RegExp(`supersedes: ${old}(?!,)`), 'only the real id is written');
+});

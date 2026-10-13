@@ -218,6 +218,11 @@ export interface RememberResult {
    * and stay live; without this the result would claim more than happened.
    */
   refusedSupersedes?: { id: string; reason: string }[];
+  /**
+   * Supersede targets that match no entry in the store. Nothing was replaced
+   * for them, and they are not written into the new entry.
+   */
+  missingSupersedes?: string[];
 }
 
 /** Jaccard similarity on token sets — cheap near-duplicate detection. */
@@ -275,9 +280,12 @@ function rememberLocked(storeDir: string, writeRoot: string, input: RememberInpu
   // Refusals are reported, never dropped silently: the caller must not believe
   // an entry was replaced when it is still live.
   const refused: { id: string; reason: string }[] = [];
+  const missing: string[] = [];
   const supersedes = (input.supersedes ?? []).filter((tid) => {
     const target = store.docs.flatMap((d) => d.entries).find((e) => e.meta.id === tid);
-    if (!target) return true;
+    // An id that matches nothing replaces nothing: report it, and keep it out
+    // of the entry so the file never records a supersession that didn't happen.
+    if (!target) { missing.push(tid); return false; }
     // Only bar the tool→(user/agent) escalation; agent/user may revise freely.
     if (trustRank(src) === 1 && trustRank(target.meta.src) > 1) {
       refused.push({
@@ -288,7 +296,10 @@ function rememberLocked(storeDir: string, writeRoot: string, input: RememberInpu
     }
     return true;
   });
-  const refusal = refused.length ? { refusedSupersedes: refused } : {};
+  const refusal = {
+    ...(refused.length ? { refusedSupersedes: refused } : {}),
+    ...(missing.length ? { missingSupersedes: missing } : {}),
+  };
 
   // Dedup: near-identical live statement → return existing, write nothing.
   if (!supersedes.length) {
