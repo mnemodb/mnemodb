@@ -248,8 +248,8 @@ function rememberLocked(storeDir: string, writeRoot: string, input: RememberInpu
   const statement = sanitizeStatement(input.statement ?? '');
   if (!statement) throw new Error('memory_remember: statement is empty after sanitization');
   if ((input.body ?? '').length > MAX_BODY) throw new Error(`memory_remember: body exceeds ${MAX_BODY} chars`);
-  // `src` is fixed to 'agent' at the MCP boundary; programmatic callers may pass
-  // a value but it is cleaned and can never be a raw 'user' spoof via injection.
+  // At the MCP boundary `src` is limited to 'agent' | 'tool' (never 'user');
+  // programmatic callers may pass any value, which is cleaned on write.
   const src = (input.src ?? 'agent');
   // Only same-or-higher-trust writers may supersede (mirrors §10; a tool/agent
   // caller cannot erase a user entry — enforced again at resolution).
