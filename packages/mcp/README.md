@@ -13,8 +13,8 @@ claude mcp add mnemodb -- npx -y @mnemodb/mcp@latest
 `CLAUDE.md` and Claude's [memory tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool)
 already give agents memory. MnemoDB isn't a replacement — it's the *structure*
 they don't provide: typed entries with lifecycle (TTL, supersession, compaction),
-provenance and a trust model (tool-sourced memories are flagged `untrusted` and
-can't override human instructions), portability across tools, and auditable
+provenance and a trust model (entries the agent labels `tool` are flagged
+`untrusted` and can't supersede or retire trusted ones), portability across tools, and auditable
 Markdown files you can `git diff`. Worth it when the agent maintains memory
 itself over many sessions, or you work across more than one tool. Full rationale:
 https://github.com/mnemodb/mnemodb
@@ -58,6 +58,13 @@ https://github.com/mnemodb/mnemodb/blob/main/docs/USAGE.md
 
 ## Security stance
 
-Everything written through `memory_remember` is stamped `src: agent`.
-Tool-derived content is data, never instructions (spec §10), flagged `untrusted`
-on recall so consuming agents don't obey it.
+`memory_remember` records `src` as `agent` (the default) or `tool`; it never
+records `user`. The agent labels text it copied from tool output or a web page
+as `tool`, which flags it `untrusted` on recall (spec §10) and puts it under the
+guards: it can't be pinned to `always`, and can't supersede or forget a
+higher-trust entry.
+
+The label is self-reported. It makes the guards apply to honest saves; it does
+not stop an injection that leaves the label off. `user` provenance comes only
+from someone editing a `.mem.md` file directly, and the agent cannot forget
+those entries.

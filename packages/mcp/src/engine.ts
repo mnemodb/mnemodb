@@ -547,8 +547,8 @@ export interface ForgetResult {
 /**
  * Auditable soft-delete: move an entry to the archive (recoverable), rather than
  * hard-deleting. Trust-gated (spec §10): an agent/tool-initiated forget may not
- * remove a higher-trust (user) entry — so an injected "forget the security note"
- * instruction cannot erase what you told the agent.
+ * remove a higher-trust entry. Through MCP the caller is always 'agent', so this
+ * protects src: user entries — ones the user wrote into a .mem.md file.
  */
 export function forget(
   storeDir: string, id: string, opts?: { by?: string; reason?: string; now?: Date },
@@ -560,8 +560,8 @@ export function forget(
     const store = loadStore(storeDir);
     const found = findEntry(store, id);
     if (!found) return { status: 'not-found', id };
-    // Trust gate (spec §10): a lower-trust caller cannot forget a user entry —
-    // so an injected "forget the security note" cannot erase what the user said.
+    // Trust gate (spec §10): a lower-trust caller cannot forget a higher-trust
+    // entry (e.g. agent cannot forget a hand-written src: user entry).
     if (trustRank(by) < trustRank(found.entry.meta.src)) {
       return { status: 'refused', id, reason: 'cannot forget a higher-trust entry' };
     }

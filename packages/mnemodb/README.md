@@ -41,8 +41,9 @@ is the opposite bet — a *defined format* with real guarantees:
   `compact` pass that archives what's expired or replaced. A flat memory file
   only grows and rots; MnemoDB forgets on purpose, auditably.
 - **Provenance & trust** — every memory records its source (`user` / `agent` /
-  `tool`). Tool-sourced content is flagged `untrusted` and can never supersede a
-  human instruction, so a poisoned memory can't hijack future sessions.
+  `tool`). Text the agent copies from tool output is labelled `tool`, flagged
+  `untrusted`, and can't supersede or retire a trusted entry. The agent applies
+  that label itself: it catches mistakes, not an injection that leaves it off.
 - **Portable** — the same files work across Claude Code, Cursor, and any MCP
   client. Not locked to one vendor.
 - **Auditable** — readable Markdown in your git repo; `git diff` shows exactly
