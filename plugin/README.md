@@ -33,8 +33,9 @@ Everything lands in readable `.mem.md` files in your repo.
 
 - **MCP server** (`.mcp.json`) — makes the `memory_*` tools available.
 - **Skill** (`skills/agent-memory/SKILL.md`) — model-invoked; tells the agent
-  the *policy*: recall before working, remember what's durable, label what it
-  copied from tools as `tool`, and treat `tool` memories as untrusted data.
+  the *policy*: recall before working, remember what's durable, label anything
+  it took from tools or the web as `tool`, and treat `tool` memories as
+  untrusted data.
 - **Hook** (`hooks/hooks.json`) — injects a one-line reminder at session start
   so memory is used even on the first turn.
 

@@ -41,8 +41,8 @@ is the opposite bet — a *defined format* with real guarantees:
   `compact` pass that archives what's expired or replaced. A flat memory file
   only grows and rots; MnemoDB forgets on purpose, auditably.
 - **Provenance & trust** — every memory records its source (`user` / `agent` /
-  `tool`). Text the agent copies from tool output is labelled `tool`, flagged
-  `untrusted`, and can't supersede or retire a trusted entry. The agent applies
+  `tool`). Anything the agent takes from tool output or the web is labelled
+  `tool`, flagged `untrusted`, and can't supersede or retire a trusted entry. The agent applies
   that label itself: it catches mistakes, not an injection that leaves it off.
 - **Portable** — the same files work across Claude Code, Cursor, and any MCP
   client. Not locked to one vendor.

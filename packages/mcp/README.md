@@ -59,10 +59,10 @@ https://github.com/mnemodb/mnemodb/blob/main/docs/USAGE.md
 ## Security stance
 
 `memory_remember` records `src` as `agent` (the default) or `tool`; it never
-records `user`. The agent labels text it copied from tool output or a web page
-as `tool`, which flags it `untrusted` on recall (spec §10) and puts it under the
-guards: it can't be pinned to `always`, and can't supersede or forget a
-higher-trust entry.
+records `user`. The agent labels anything it took from tool output or a web
+page — copied or paraphrased — as `tool`, which flags it `untrusted` on recall
+(spec §10) and puts it under the guards: it can't be pinned to `always`, and
+can't supersede or forget a higher-trust entry.
 
 The label is self-reported. It makes the guards apply to honest saves; it does
 not stop an injection that leaves the label off. `user` provenance comes only
