@@ -8,12 +8,12 @@
  * confidence/pin, then freshness.
  */
 import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 import {
   loadStore, resolveWriteDir, liveEntries, deriveIndex, supersededIds, parse, serialize,
   appendEntry, generateId, writeFileAtomic, doctor, planCompaction,
   applyCompaction, isExpired, isStale, estimateTokens, withStoreLock,
-  sanitizeStatement, trustRank, isUntrusted, canonicalSrc, MAX_BODY,
+  sanitizeStatement, trustRank, isUntrusted, canonicalSrc, MAX_BODY, scaffoldStore,
 } from '@mnemodb/core';
 import type { Entry, LiveEntry, Store, MemDoc } from '@mnemodb/core';
 
@@ -233,7 +233,15 @@ export function remember(storeDir: string, input: RememberInput): RememberResult
       'memory_remember: the store path points at a file; single-file stores are read-only for writes \u2014 point MNEMO_STORE at the project directory instead',
     );
   }
+  const isNewStore = !existsSync(writeRoot);
   mkdirSync(writeRoot, { recursive: true });
+  // A store born from this write gets the same layout as `mnemo init` —
+  // archive, README, episodes/, and a union merge driver — kept inside
+  // `.memory/` (core/scaffold.ts). Exclusive creates make a racing first write
+  // harmless. Existing stores are never touched.
+  if (isNewStore && basename(writeRoot) === '.memory') {
+    scaffoldStore(writeRoot, { date: (input.now ?? new Date()).toISOString().slice(0, 10), gitFiles: true });
+  }
   // Lock on the same dir every writer (remember/forget/pin) uses, so mutual
   // exclusion actually holds now that reads resolve to `.memory/` too.
   return withStoreLock(writeRoot, () => rememberLocked(storeDir, writeRoot, input));

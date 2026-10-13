@@ -11,6 +11,8 @@ import { writeFileSync, renameSync, rmSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { serialize, serializeEntry } from './serialize.js';
 import { supersededIds } from './store.js';
+import { parse } from './parse.js';
+import { storeFrontMatter } from './scaffold.js';
 import { isExpired } from './lifecycle.js';
 import type { Store } from './store.js';
 import type { Entry, MemDoc } from './types.js';
@@ -38,9 +40,15 @@ function isArchive(doc: MemDoc): boolean {
 
 /** Compute the compaction plan. Pure: does not touch the filesystem. */
 export function planCompaction(store: Store, now: Date = new Date()): CompactPlan {
-  const archive = store.docs.find(isArchive);
+  let archive = store.docs.find(isArchive);
   if (!archive) {
-    return { moves: [], changed: [] }; // single-file mode: nothing to move into
+    // Single-file and legacy root stores have nowhere to move entries to.
+    if (basename(store.root) !== '.memory') return { moves: [], changed: [] };
+    // A `.memory/` store born from a first write before 0.1.21 has no archive
+    // file, so compaction used to find nothing to move — silently, forever.
+    // Plan against an empty archive; applyCompaction creates it (only if
+    // something actually moves).
+    archive = parse(storeFrontMatter('project', 'archive', now.toISOString().slice(0, 10)), ARCHIVE_NAME);
   }
   const dead = supersededIds(store);
   const moves: CompactMove[] = [];

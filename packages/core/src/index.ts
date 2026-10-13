@@ -16,3 +16,5 @@ export { migrateProseFile, importNumberedDir, importClaudeMemoryDir } from './mi
 export type { ImportedEntry } from './migrate.js';
 export { withStoreLock } from './lock.js';
 export { sanitizeStatement, sanitizeBody, sanitizeTags, trustRank, canonicalSrc, isUntrusted, MAX_STATEMENT, MAX_BODY, MAX_TAG, MAX_TAGS } from './sanitize.js';
+export { scaffoldStore, storeFrontMatter, STORE_README } from './scaffold.js';
+export type { ScaffoldOptions } from './scaffold.js';

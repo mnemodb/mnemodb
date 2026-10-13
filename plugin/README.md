@@ -23,15 +23,11 @@ claude plugin marketplace add mnemodb/mnemodb
 claude plugin install mnemodb@mnemodb
 ```
 
-Then create a store in your project (once) and restart Claude Code:
-
-```bash
-npx @mnemodb/cli@0.1.20 init
-```
-
-That's it. The agent will now recall relevant memory at the start of tasks and
-save durable decisions, facts, and preferences as they come up — no `CLAUDE.md`
-snippet required. Everything lands in readable `.mem.md` files in your repo.
+That's it — there is no init step. The `.memory/` store is created in your
+project the first time the agent saves something. From then on the agent
+recalls relevant memory at the start of tasks and saves durable decisions,
+facts, and preferences as they come up — no `CLAUDE.md` snippet required.
+Everything lands in readable `.mem.md` files in your repo.
 
 ## What each piece does
 
