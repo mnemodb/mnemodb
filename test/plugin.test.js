@@ -151,3 +151,13 @@ test('SECURITY: no secrets or credentials anywhere in the plugin', () => {
       `no secret-like content in ${f}`);
   }
 });
+
+test('privacy policy: plugin.json links PRIVACY.md on main, it exists, and the plugin README links it', () => {
+  const url = 'https://github.com/mnemodb/mnemodb/blob/main/PRIVACY.md';
+  const p = json(`${ROOT}.claude-plugin/plugin.json`);
+  assert.equal(p.privacyPolicyUrl, url);
+  const policy = read(`${REPO}PRIVACY.md`);
+  assert.match(policy, /no telemetry/i);
+  assert.match(policy, /context/i, 'must say recalled memories enter the assistant context');
+  assert.ok(read(`${ROOT}README.md`).includes(url), 'plugin README links the policy by absolute URL');
+});

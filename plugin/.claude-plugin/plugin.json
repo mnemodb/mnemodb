@@ -8,6 +8,7 @@
   "homepage": "https://github.com/mnemodb/mnemodb",
   "repository": "https://github.com/mnemodb/mnemodb",
   "license": "Apache-2.0",
+  "privacyPolicyUrl": "https://github.com/mnemodb/mnemodb/blob/main/PRIVACY.md",
   "keywords": ["memory", "agent", "mcp", "mnemodb"],
   "icon": "./icon.svg",
   "mcpServers": "./.mcp.json",

@@ -40,3 +40,10 @@ Everything lands in readable `.mem.md` files in your repo.
   so memory is used even on the first turn.
 
 Full docs and rationale: https://github.com/mnemodb/mnemodb
+
+## Privacy
+
+MnemoDB has no service and no telemetry. Memories are plain files in `.memory/`
+in your project, and MnemoDB itself sends them nowhere. The full policy,
+including how Git and your AI assistant can carry them, is in
+[PRIVACY.md](https://github.com/mnemodb/mnemodb/blob/main/PRIVACY.md).
