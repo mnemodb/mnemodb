@@ -36,9 +36,17 @@ function callList(cwd, store) {
       reject(new Error('timeout; stderr: ' + stderr.slice(0, 300)));
     }, 20000);
     srv.stderr.on('data', (d) => { stderr += d; });
+    // A write can still be in flight when the test kills the server; that EPIPE
+    // is expected and must not surface as an uncaught error after the test.
+    srv.stdin.on('error', () => {});
     srv.stdout.on('data', (d) => {
       buf += d;
-      for (const line of buf.split('\n')) {
+      // Consume complete lines only. Re-scanning the whole buffer on every chunk
+      // re-sent the request whenever the two replies arrived in separate chunks,
+      // and that duplicate write hit a closed pipe (EPIPE) after the test ended.
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
         if (!line.trim()) continue;
         let m; try { m = JSON.parse(line); } catch { continue; }
         if (m.id === 1) {

@@ -40,6 +40,7 @@ function session(store, calls) {
       srv.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 100 + next, ...msg }) + '\n');
     };
     srv.stderr.on('data', (d) => { stderr += d; });
+    srv.stdin.on('error', () => {}); // EPIPE after kill is expected, not a failure
     srv.stdout.on('data', (d) => {
       buf += d;
       const lines = buf.split('\n');

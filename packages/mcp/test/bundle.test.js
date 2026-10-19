@@ -35,9 +35,14 @@ test('bundle: server runs standalone (no node_modules) and answers a tool call',
     let buf = '', stderr = '';
     const timer = setTimeout(() => { srv.kill(); reject(new Error('timeout; stderr: ' + stderr.slice(0, 300))); }, 20000);
     srv.stderr.on('data', (d) => { stderr += d; });
+    srv.stdin.on('error', () => {}); // EPIPE after kill is expected, not a failure
     srv.stdout.on('data', (d) => {
       buf += d;
-      for (const line of buf.split('\n')) {
+      // Consume complete lines only (see store-dir.test.js): re-scanning the
+      // whole buffer re-sent the request and could write to a closed pipe.
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
         if (!line.trim()) continue;
         let m; try { m = JSON.parse(line); } catch { continue; }
         if (m.id === 1) srv.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory_list', arguments: {} } }) + '\n');

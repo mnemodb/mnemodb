@@ -31,6 +31,7 @@ function remember(cwd, envOverrides, args = []) {
     let buf = '', stderr = '';
     const timer = setTimeout(() => { srv.kill(); reject(new Error('timeout; ' + stderr.slice(0, 300))); }, 20000);
     srv.stderr.on('data', (d) => { stderr += d; });
+    srv.stdin.on('error', () => {}); // EPIPE after kill is expected, not a failure
     srv.stdout.on('data', (d) => {
       buf += d;
       const lines = buf.split('\n'); buf = lines.pop();
