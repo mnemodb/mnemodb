@@ -22,6 +22,9 @@ const BUNDLE = join(HERE, '..', 'dist', 'server.js');
 /** Spawn the server in `cwd` with the given MNEMO_STORE and call memory_list. */
 function callList(cwd, store) {
   const env = { ...process.env };
+  // Pin the fallback chain: a CLAUDE_PROJECT_DIR inherited from the shell would
+  // otherwise take precedence over the working directory (0.1.22).
+  delete env.CLAUDE_PROJECT_DIR;
   if (store === undefined) delete env.MNEMO_STORE;
   else env.MNEMO_STORE = store;
 

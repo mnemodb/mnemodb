@@ -24,11 +24,18 @@ import {
 // Single-source the advertised version from package.json so it never drifts.
 const { version } = createRequire(import.meta.url)('../package.json') as { version: string };
 
-// Resolve the store's base directory. Prefer MNEMO_STORE (the Claude Code
-// plugin sets it to ${CLAUDE_PROJECT_DIR} so writes always land in the
-// project's store, never wherever npx happened to launch us). Fall back to the
-// working directory only when it is *unset*. `loadStore` handles the .memory/ vs
-// single-file layout underneath whichever base we return.
+// Resolve the store's base directory, in this order:
+//   1. MNEMO_STORE, when set (explicit configuration always wins);
+//   2. CLAUDE_PROJECT_DIR, which Claude Code sets in the environment of the
+//      stdio MCP servers it launches;
+//   3. the working directory — unless the server was started with
+//      --require-project-dir, in which case it refuses instead.
+// The plugin passes --require-project-dir rather than setting
+// MNEMO_STORE="${CLAUDE_PROJECT_DIR}": the directory validator refuses any
+// variable other than ${CLAUDE_PLUGIN_ROOT} in a plugin's commands, and a
+// plain flag keeps the 0.1.19 guarantee (never scatter a store into whatever
+// directory npx happened to start in) without one. `loadStore` handles the
+// .memory/ vs single-file layout underneath whichever base we return.
 //
 // Set-but-broken is treated as an error, not as "unset". A host that does not
 // define CLAUDE_PROJECT_DIR hands us "" (or, on some hosts, the literal
@@ -38,9 +45,22 @@ const { version } = createRequire(import.meta.url)('../package.json') as { versi
 // means memories are written, reported saved, and then lost with the sandbox.
 // Silent data loss is the worst outcome available to a memory tool, so fail
 // loudly and name the variable instead.
+const REQUIRE_PROJECT_DIR = process.argv.slice(2).includes('--require-project-dir');
+
 function storeDir(): string {
   const raw = process.env.MNEMO_STORE;
-  if (raw === undefined) return process.cwd(); // documented fallback, unchanged
+  if (raw === undefined) {
+    const project = process.env.CLAUDE_PROJECT_DIR;
+    if (project !== undefined && project.trim() !== '' && !/\$\{[^}]*\}/.test(project)) return project;
+    if (REQUIRE_PROJECT_DIR) {
+      throw new Error(
+        'No project directory: MNEMO_STORE is unset and the host did not provide CLAUDE_PROJECT_DIR. ' +
+          'Refusing to guess (--require-project-dir) \u2014 a store created in the wrong directory may not persist. ' +
+          'Set MNEMO_STORE to your project directory.',
+      );
+    }
+    return process.cwd(); // documented fallback for manual installs, unchanged
+  }
   if (raw.trim() === '') {
     throw new Error(
       'MNEMO_STORE is set but empty \u2014 a "${CLAUDE_PROJECT_DIR}"-style expansion failed. ' +
