@@ -2,10 +2,11 @@
   "mcpServers": {
     "mnemodb": {
       "command": "npx",
-      "args": ["-y", "@mnemodb/mcp@0.1.21"],
-      "env": {
-        "MNEMO_STORE": "${CLAUDE_PROJECT_DIR}"
-      }
+      "args": [
+        "-y",
+        "@mnemodb/mcp@0.1.21",
+        "--require-project-dir"
+      ]
     }
   }
 }

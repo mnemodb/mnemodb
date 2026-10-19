@@ -59,16 +59,28 @@ test('the MCP server runs only the published, audited package', () => {
   // assertion used to hardcode the version and broke on every bump).
   const { version } = json(`${ROOT}.claude-plugin/plugin.json`);
   assert.match(version, /^\d+\.\d+\.\d+$/, 'plugin version must be exact semver');
-  assert.deepEqual(m.mnemodb.args, ['-y', `@mnemodb/mcp@${version}`]);
+  assert.deepEqual(m.mnemodb.args, ['-y', `@mnemodb/mcp@${version}`, '--require-project-dir']);
 });
 
 test('the MCP server pins the store to the project dir (not the launch cwd)', () => {
-  // An MCP server's process.cwd() is NOT guaranteed to be the project root, so
-  // the plugin must pin MNEMO_STORE to ${CLAUDE_PROJECT_DIR}. Without this, a
-  // stray cwd sends memory_remember writes to a store the user's `mnemo list`
-  // never reads — the "wrote memory, list is empty" failure.
+  // An MCP server's process.cwd() is NOT guaranteed to be the project root.
+  // Up to 0.1.21 the plugin pinned MNEMO_STORE="${CLAUDE_PROJECT_DIR}"; the
+  // directory validator now blocks any variable other than ${CLAUDE_PLUGIN_ROOT}.
+  // So the server reads CLAUDE_PROJECT_DIR itself (Claude Code sets it for the
+  // stdio servers it launches, verified on Windows), and --require-project-dir
+  // makes a host without one an error instead of a store in the wrong place.
   const s = json(`${ROOT}.mcp.json`).mcpServers.mnemodb;
-  assert.equal(s.env?.MNEMO_STORE, '${CLAUDE_PROJECT_DIR}');
+  assert.ok(s.args.includes('--require-project-dir'), 'the plugin requires a project dir');
+  assert.equal(s.env, undefined, 'no env block: the server resolves the project itself');
+});
+
+test('plugin commands use no variable other than ${CLAUDE_PLUGIN_ROOT}', () => {
+  // Mirrors the directory validator's blocking rule for plugins in a repository
+  // subfolder ("Command path can't be followed"), which rejected 0.1.21.
+  for (const f of ['.mcp.json', 'hooks/hooks.json']) {
+    const vars = [...read(`${ROOT}${f}`).matchAll(/\$\{([^}]*)\}/g)].map((m) => m[1]);
+    assert.deepEqual(vars.filter((v) => v !== 'CLAUDE_PLUGIN_ROOT'), [], `${f} uses only \${CLAUDE_PLUGIN_ROOT}`);
+  }
 });
 
 test('the skill and hook position MnemoDB for durable memory, not as a native-memory replacement', () => {

@@ -352,9 +352,11 @@ could land as a loose `project.mem.md` at your project root instead of creating
 **I saved a memory but `mnemo list` shows nothing.**
 The server and the CLI are pointed at different stores. An MCP server's working
 directory isn't guaranteed to be your project root, so it may have written a
-`.memory/` elsewhere. The plugin pins `MNEMO_STORE=${CLAUDE_PROJECT_DIR}` to
-prevent this; for a manual `claude mcp add`, set `MNEMO_STORE=/path/to/project`
-in the server's env, and run the CLI from that directory or pass it the path:
+`.memory/` elsewhere. Since 0.1.22 the server uses the `CLAUDE_PROJECT_DIR`
+that Claude Code gives MCP servers, and the plugin starts it with
+`--require-project-dir`, so it refuses to write rather than guess. For another
+host, set `MNEMO_STORE=/path/to/project` in the server's env, and run the CLI
+from that directory or pass it the path:
 `npx @mnemodb/cli list /path/to/project`. (The CLI reads no environment
 variables — `MNEMO_STORE` only affects the MCP server.)
 

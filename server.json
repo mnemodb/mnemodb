@@ -18,7 +18,7 @@
       "environmentVariables": [
         {
           "name": "MNEMO_STORE",
-          "description": "Directory containing the .memory/ store. Leave unset to use the working directory. Setting it to an empty value is an error: the server refuses rather than writing the store somewhere that will not persist.",
+          "description": "Directory containing the .memory/ store. If unset, the server uses CLAUDE_PROJECT_DIR (set by Claude Code), then the working directory. An empty value is an error: the server refuses rather than writing the store somewhere that will not persist.",
           "isRequired": false,
           "isSecret": false,
           "format": "string"
