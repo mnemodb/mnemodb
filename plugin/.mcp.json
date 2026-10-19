@@ -4,7 +4,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "@mnemodb/mcp@0.1.21",
+        "@mnemodb/mcp@0.1.22",
         "--require-project-dir"
       ]
     }

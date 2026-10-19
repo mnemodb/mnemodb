@@ -6,6 +6,31 @@ adheres to [Semantic Versioning](https://semver.org/). All packages
 (`@mnemodb/core`, `@mnemodb/cli`, `@mnemodb/mcp`, and the `mnemodb` umbrella)
 are versioned together.
 
+## [0.1.22] — 2026-10-19
+
+The plugin passes the Claude plugin directory's validator again. No change to
+what is stored or how.
+
+- **Fixed: the directory's validator blocked the plugin.** It now refuses any
+  variable other than `${CLAUDE_PLUGIN_ROOT}` in the commands of a plugin that
+  lives in a repository subfolder, and the plugin passed
+  `MNEMO_STORE="${CLAUDE_PROJECT_DIR}"`. Confirmed by validating a branch with
+  that line removed.
+- **The server finds the project itself.** Store resolution is now:
+  `MNEMO_STORE` if set (unchanged, same guards) → `CLAUDE_PROJECT_DIR`, which
+  Claude Code sets for the stdio MCP servers it launches (verified with a
+  probe plugin on Windows) → the working directory. Manual installs without
+  `MNEMO_STORE` therefore use the project directory when Claude Code provides
+  one, instead of whatever directory the server started in.
+- **New `--require-project-dir` flag.** The plugin passes it, which turns the
+  last fallback into an error: a host that provides no project directory is
+  refused loudly, never a store in the wrong place. That keeps the 0.1.19
+  guarantee without a variable in the plugin config.
+- **The SessionStart hook runs in exec form** (`bash` with the script path as
+  an argument), the form the plugin docs recommend for path placeholders.
+- Tests 135 → 142, including a guard that fails if a plugin command uses any
+  variable other than `${CLAUDE_PLUGIN_ROOT}`.
+
 ## [0.1.21] — 2026-10-13
 
 The trust model's promises now hold for what the plugin itself writes, and the
